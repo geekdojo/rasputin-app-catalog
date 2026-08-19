@@ -1,7 +1,13 @@
-# HELD ON 1.x DELIBERATELY. Upstream's latest is 2.5.0, and it is far worse on
-# supply chain: 1475 fixable HIGH/CRITICAL against 176 on this pin (measured
-# 2026-08-19). v2 is also a major version whose migration needs a bench, so
-# moving is a decision rather than a version bump. Tracked separately.
+# On 2.x. The raw CVE count is higher than 1.23.17 (1475 vs 176) and that number
+# is misleading: v2's OWN dependencies are better (92 fixable in node+go vs 174),
+# and the difference is 1383 fixable Debian CVEs from a stale base layer that
+# upstream fixes by rebuilding. Different owner, different remediation.
+#
+# Staying on 1.x was the wrong call for a second reason: 1.23.17 shipped
+# 2025-10-20 and is the only 1.x release in twenty months, while 2.x has had
+# eight. A branch that no longer gets fixes does not stay at 176.
+#
+# Still owed: an ACC-1 bench, since this is a major version.
 #
 # Version is provisional — the ACC-1 bench gate re-pins before ship. The DIGEST is
 # what actually fixes the contents: a tag is mutable at the registry however
@@ -9,7 +15,7 @@
 # pin (ADR-0006 Decision 8).
 services:
   uptime-kuma:
-    image: louislam/uptime-kuma:1.23.17@sha256:3d632903e6af34139a37f18055c4f1bfd9b7205ae1138f1e5e8940ddc1d176f9
+    image: louislam/uptime-kuma:2.5.0@sha256:a8610b3b4c38077922ba51b036691e06887d7cefd91fe620fd3d6d23d03dc240
     restart: unless-stopped
     volumes:
       - uptime-kuma-data:/app/data

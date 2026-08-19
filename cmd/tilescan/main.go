@@ -103,29 +103,41 @@ func report(id, img string, prov scan.Provenance, vulns []scan.Vuln, provDir str
 		failures++
 	}
 
-	var fixable []scan.Vuln
+	var appFix, osFix, unfixed int
+	var worst []scan.Vuln
 	for _, v := range vulns {
-		if v.Fixable() {
-			fixable = append(fixable, v)
+		switch {
+		case !v.Fixable():
+			unfixed++
+		case v.AppLevel():
+			appFix++
+			worst = append(worst, v)
+		default:
+			osFix++
 		}
 	}
-	if len(fixable) > 0 {
-		// Fixable means upstream shipped a fix and OUR pin is stale — the one
-		// class of vulnerability we can actually act on.
-		fmt.Printf("  x %-18s %d fixable HIGH/CRITICAL — the pin is stale:\n", id, len(fixable))
-		for _, v := range fixable[:min(5, len(fixable))] {
+
+	// Split by owner, because a single total answers the wrong question. App-level
+	// findings are the maintainers' own dependency choices and say something real
+	// about the project; base-image findings come from whatever they built on and
+	// are fixed by an upstream rebuild. Summing them once nearly moved this catalog
+	// onto a branch that had shipped a single release in twenty months.
+	if appFix > 0 {
+		fmt.Printf("  x %-18s %d fixable HIGH/CRITICAL in the app's OWN dependencies:\n", id, appFix)
+		for _, v := range worst[:min(5, len(worst))] {
 			fmt.Printf("      %s %s %s → %s (%s)\n", v.Severity, v.Pkg, v.Installed, v.Fixed, v.ID)
 		}
-		if len(fixable) > 5 {
-			fmt.Printf("      … and %d more\n", len(fixable)-5)
+		if len(worst) > 5 {
+			fmt.Printf("      … and %d more\n", len(worst)-5)
 		}
 		failures++
 	}
-	if unfixed := len(vulns) - len(fixable); unfixed > 0 {
-		// Reported, never gated: no upstream fix exists, so the only lever is
-		// dropping the tile. A permanently red build nobody can green is a
-		// build everyone learns to ignore.
-		fmt.Printf("  · %-18s %d unfixed HIGH/CRITICAL (no upstream fix — reported, not gated)\n", id, unfixed)
+	if osFix > 0 {
+		// Reported, not gated: the remedy is upstream rebuilding their base image.
+		fmt.Printf("  · %-18s %d fixable in the base image (upstream's rebuild, not ours)\n", id, osFix)
+	}
+	if unfixed > 0 {
+		fmt.Printf("  · %-18s %d unfixed HIGH/CRITICAL (no upstream fix anywhere — reported, not gated)\n", id, unfixed)
 	}
 	return failures
 }

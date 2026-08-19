@@ -57,7 +57,22 @@ type trivyReport struct {
 // Vuln is one finding worth a human's attention.
 type Vuln struct {
 	ID, Pkg, Installed, Fixed, Severity string
+	// Class is trivy's "os-pkgs" or "lang-pkgs", and the distinction is the
+	// whole reason this field exists. A single total conflates two problems
+	// with different owners: lang-pkgs are the maintainers' OWN dependency
+	// choices, while os-pkgs come from whatever base image they built on and
+	// are fixed by an upstream rebuild nobody here can trigger.
+	//
+	// Measured on uptime-kuma 2026-08-19: v2 looked 8x worse than v1 on the
+	// raw total (1475 vs 176) and was actually BETTER on its own dependencies
+	// (92 vs 174) — the gap was 1383 stale Debian packages. Acting on the total
+	// nearly pinned the catalog to a branch that had shipped once in 20 months.
+	Class string
 }
+
+// AppLevel reports whether this is the maintainers' own dependency rather than
+// something inherited from the base image.
+func (v Vuln) AppLevel() bool { return v.Class == "lang-pkgs" }
 
 // Fixable reports whether upstream has shipped a fix. This is the distinction
 // the gate turns on: a fixable HIGH means OUR pin is stale and we can act, while
@@ -97,7 +112,7 @@ func Scan(tile, image string) (Provenance, []Vuln, error) {
 		}
 		for _, v := range r.Vulnerabilities {
 			if v.Severity == "HIGH" || v.Severity == "CRITICAL" {
-				vulns = append(vulns, Vuln{v.VulnerabilityID, v.PkgName, v.InstalledVersion, v.FixedVersion, v.Severity})
+				vulns = append(vulns, Vuln{v.VulnerabilityID, v.PkgName, v.InstalledVersion, v.FixedVersion, v.Severity, r.Class})
 			}
 		}
 	}
