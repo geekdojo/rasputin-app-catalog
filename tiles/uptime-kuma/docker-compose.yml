@@ -1,7 +1,10 @@
-# Pin is provisional — the ACC-1 bench gate re-pins before ship.
+# Version is provisional — the ACC-1 bench gate re-pins before ship. The DIGEST is
+# what actually fixes the contents: a tag is mutable at the registry however
+# specific it looks, so the tag here is human-readable sugar and the digest is the
+# pin (ADR-0006 Decision 8).
 services:
   uptime-kuma:
-    image: louislam/uptime-kuma:1.23.16
+    image: louislam/uptime-kuma:1.23.16@sha256:431fee3be822b04861cf0e35daf4beef6b7cb37391c5f26c3ad6e12ce280fe18
     restart: unless-stopped
     volumes:
       - uptime-kuma-data:/app/data

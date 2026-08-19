@@ -61,11 +61,25 @@ Those safety facts are **derived here at publish time** and carried in the signe
 The control plane never parses compose — it validates the derived facts, which the bundle
 signature makes exactly as trustworthy as the compose they came from.
 
+## Linting a tile
+
+```
+go run ./cmd/tilelint           # validate every tile, offline
+go run ./cmd/tilelint -arch     # also ask the registries what each image publishes
+go run ./cmd/tilelint -tile pi-hole
+```
+
+The offline run gates every PR. The `-arch` probe runs weekly and on `main` rather than on
+PRs — it talks to Docker Hub and ghcr, and a contributor cannot fix a registry outage.
+
+**Images must be digest-pinned.** A tag is mutable at the registry however specific it looks,
+so `jellyfin/jellyfin:10.9.11` does not describe a fixed stack. Keep the tag for readability
+and add the digest — `jellyfin/jellyfin:10.9.11@sha256:…` — which is the form the linter wants.
+
 ## Not here yet
 
 This repo is being stood up incrementally. Still to land:
 
-- the publish-time linter and CI wiring,
 - the signed, versioned bundle and its publish pipeline,
 - the app-request intake template and the agent-assisted drafting pipeline,
 - the hardware bench stage that flips `preview` → `available`.

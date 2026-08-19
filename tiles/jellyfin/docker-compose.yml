@@ -1,7 +1,10 @@
-# Pin is provisional — the ACC-1 bench gate re-pins before ship.
+# Version is provisional — the ACC-1 bench gate re-pins before ship. The DIGEST is
+# what actually fixes the contents: a tag is mutable at the registry however
+# specific it looks, so the tag here is human-readable sugar and the digest is the
+# pin (ADR-0006 Decision 8).
 services:
   jellyfin:
-    image: jellyfin/jellyfin:10.9.11
+    image: jellyfin/jellyfin:10.9.11@sha256:fc1b51f4be3fba725e42dae2022d9c6a5b069acce01bef04d32fdee025dc511e
     restart: unless-stopped
     volumes:
       - jellyfin-config:/config
