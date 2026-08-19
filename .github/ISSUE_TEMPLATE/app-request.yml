@@ -13,10 +13,14 @@ body:
         it is queued for evaluation — deployed on real Pi 5 and N100 hardware, measured,
         and scanned. Passing all of that is what earns a tile.
 
-        Two things worth setting expectations on. Rasputin's catalog is **curated, not
+        Worth setting expectations on: Rasputin's catalog is **curated, not
         comprehensive** — a good app can still be declined because it does not fit the
-        set. And an app that only ships an `amd64` image cannot be carried at all: half
-        the fleet is arm64.
+        set.
+
+        A single-architecture app is fine. Rasputin runs arm64 (Pi 5) and amd64 (N100)
+        nodes, and a tile declares which it supports; install offers only the nodes that
+        can actually run it. An app that runs everywhere is worth more on a mixed
+        cluster, but running on one architecture is not a disqualification.
   - type: input
     id: app_id
     attributes:
@@ -38,9 +42,9 @@ body:
     attributes:
       label: Container image
       description: >
-        The published image, with a specific version tag — not `latest`. Multi-arch
-        (linux/amd64 AND linux/arm64) is required; the bot verifies this against the
-        registry rather than taking the tag's word for it.
+        The published image, with a specific version tag — not `latest`. The bot checks
+        the registry to confirm it really publishes the architectures you claim below,
+        rather than taking the tag's word for it.
       placeholder: ghcr.io/paperless-ngx/paperless-ngx:2.13.5
     validations: { required: true }
   - type: input
@@ -49,6 +53,19 @@ body:
       label: Upstream project
       description: Source repository, so licence and project health can be checked.
       placeholder: https://github.com/paperless-ngx/paperless-ngx
+    validations: { required: true }
+  - type: dropdown
+    id: arch
+    attributes:
+      label: Which architectures does it support?
+      description: >
+        Pick "not sure" and the bot will tell you what the registry actually publishes.
+      options:
+        - both (arm64 and amd64)
+        - arm64 only
+        - amd64 only
+        - not sure — check for me
+      default: 0
     validations: { required: true }
   - type: dropdown
     id: collection
@@ -86,8 +103,6 @@ body:
     attributes:
       label: Before submitting
       options:
-        - label: The image publishes both linux/amd64 and linux/arm64
-          required: true
         - label: It runs without an account, licence key, or paid feed to be useful
           required: false
         - label: It is safe on a LAN by default (does not expect to be internet-exposed)

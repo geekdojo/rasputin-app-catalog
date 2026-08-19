@@ -120,6 +120,7 @@ func main() {
 		problems = append(problems, problem{true, "The screenshot question is the one the catalog is curated on — it needs an answer."})
 	}
 
+	archFound := ""
 	img := strings.TrimSpace(f["container image"])
 	switch {
 	case img == "":
@@ -128,7 +129,14 @@ func main() {
 		problems = append(problems, problem{true,
 			"The image needs a specific version tag. `latest` moves under us, so it cannot be carried."})
 	default:
-		problems = append(problems, checkArch(img)...)
+		declared := parseArch(f["which architectures does it support?"])
+		if plats, err := registry.Platforms(img); err != nil {
+			problems = append(problems, problem{true, fmt.Sprintf(
+				"Could not read `%s` from its registry (%v). Check the name, and that the image is public.", echoUser(img), err)})
+		} else {
+			archFound = strings.Join(plats, ", ")
+			problems = append(problems, archVerdict(img, declared, plats)...)
+		}
 	}
 
 	blocking := 0
@@ -138,7 +146,7 @@ func main() {
 		}
 	}
 
-	fmt.Println(render(id, img, problems, blocking))
+	fmt.Println(render(id, img, archFound, problems, blocking))
 	if blocking > 0 {
 		writeOutput("verdict", "incomplete")
 		os.Exit(1)
@@ -147,42 +155,114 @@ func main() {
 	return
 }
 
-// checkArch is the one check worth the network call: an app that cannot run on
-// arm64 cannot be carried at all, because half the fleet is Pi. The registry is
-// asked rather than the tag believed.
-func checkArch(img string) []problem {
-	plats, err := registry.Platforms(img)
-	if err != nil {
-		return []problem{{true, fmt.Sprintf(
-			"Could not read `%s` from its registry (%v). Check the name, and that the image is public.", echoUser(img), err)}}
-	}
+// archVerdict verifies the tile's CLAIM against the registry. It does not demand
+// both architectures.
+//
+// That distinction was got wrong first time round. ACC-1's bench criterion is
+// "prove the published multi-arch image actually runs on the Pi, don't trust the
+// tag" — a VERIFICATION step, which this turned into a GATE requiring both. The
+// product had already decided otherwise: `arch` is a first-class tile field
+// accepting arm64 or amd64 alone, install is arch-gated, and the install drawer
+// filters the node picker by architecture. Single-arch apps are supported by
+// design; the rubric treats limited cluster fit as a scoring demerit, not a
+// disqualification.
+//
+// What IS worth failing on is a tile claiming an architecture it does not
+// publish, because that surfaces as a failed install on somebody's Pi rather
+// than as a rejected request here.
+//
+// archVerdict is the decision, split from the fetch so every branch is testable
+// without a registry. Hunting for a genuinely single-arch image to exercise the
+// mismatch path is how that case ends up untested.
+func archVerdict(img, declared string, plats []string) []problem {
 	if len(plats) == 0 {
-		return []problem{{true, fmt.Sprintf(
-			"`%s` publishes a single-architecture manifest, so it cannot run on both halves of a Rasputin cluster.", echoUser(img))}}
+		// A plain (non-index) manifest names no platform. We cannot tell what it
+		// is from here, so say so rather than guessing.
+		return []problem{{false, fmt.Sprintf(
+			"`%s` publishes a single-architecture manifest that does not declare its platform, so the architecture could not be confirmed automatically. A human will check it.", echoUser(img))}}
 	}
+
 	have := map[string]bool{}
 	for _, p := range plats {
 		have[p] = true
 	}
+
+	// "not sure" is answered rather than punished — the registry already knows.
+	if declared == archUnknown {
+		return []problem{{false, fmt.Sprintf(
+			"Architecture checked for you: `%s` publishes **%s**. The tile will be recorded as `%s`.",
+			echoUser(img), strings.Join(plats, ", "), inferArch(have))}}
+	}
+
 	var missing []string
-	for _, need := range []string{"linux/amd64", "linux/arm64"} {
+	for _, need := range requiredPlatforms(declared) {
 		if !have[need] {
 			missing = append(missing, need)
 		}
 	}
 	if len(missing) > 0 {
 		return []problem{{true, fmt.Sprintf(
-			"`%s` publishes %s — missing %s. Rasputin runs arm64 (Pi 5) and amd64 (N100) nodes, so a tile needs both.",
-			echoUser(img), strings.Join(plats, ", "), strings.Join(missing, " and "))}}
+			"The request says **%s**, but `%s` publishes only %s — missing %s. Either the claim or the image is wrong.",
+			declared, echoUser(img), strings.Join(plats, ", "), strings.Join(missing, " and "))}}
 	}
 	return nil
 }
 
-func render(id, img string, problems []problem, blocking int) string {
+const (
+	archBoth    = "both"
+	archArm64   = "arm64"
+	archAmd64   = "amd64"
+	archUnknown = "unknown"
+)
+
+// parseArch maps the dropdown's prose to a tile `arch` value. The option labels
+// carry explanatory text, so match on a distinguishing prefix rather than the
+// whole string — reworded labels should not silently become "unknown".
+func parseArch(s string) string {
+	switch l := strings.ToLower(strings.TrimSpace(s)); {
+	case strings.HasPrefix(l, "both"):
+		return archBoth
+	case strings.HasPrefix(l, "arm64"):
+		return archArm64
+	case strings.HasPrefix(l, "amd64"):
+		return archAmd64
+	default:
+		return archUnknown
+	}
+}
+
+func requiredPlatforms(declared string) []string {
+	switch declared {
+	case archArm64:
+		return []string{"linux/arm64"}
+	case archAmd64:
+		return []string{"linux/amd64"}
+	default:
+		return []string{"linux/amd64", "linux/arm64"}
+	}
+}
+
+func inferArch(have map[string]bool) string {
+	switch {
+	case have["linux/amd64"] && have["linux/arm64"]:
+		return archBoth
+	case have["linux/arm64"]:
+		return archArm64
+	case have["linux/amd64"]:
+		return archAmd64
+	}
+	return archUnknown
+}
+
+func render(id, img, archNote string, problems []problem, blocking int) string {
 	var b strings.Builder
 	if blocking == 0 {
 		b.WriteString("### Automated check: passed\n\n")
-		b.WriteString("The request is complete and the image runs on both architectures Rasputin ships.\n\n")
+		if archNote != "" {
+			fmt.Fprintf(&b, "The request is complete, and the image publishes %s.\n\n", archNote)
+		} else {
+			b.WriteString("The request is complete.\n\n")
+		}
 		for _, p := range problems {
 			if !p.blocking {
 				fmt.Fprintf(&b, "- %s\n", p.text)

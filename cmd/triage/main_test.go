@@ -111,3 +111,98 @@ func TestTileStatus_PreviewIsNotTheSameAsShipped(t *testing.T) {
 		t.Errorf("unknown id should be statusNone; got %q", got)
 	}
 }
+
+func TestParseArch(t *testing.T) {
+	cases := map[string]string{
+		"both (arm64 and amd64)":  archBoth,
+		"arm64 only":              archArm64,
+		"amd64 only":              archAmd64,
+		"not sure — check for me": archUnknown,
+		"":                        archUnknown,
+		"BOTH (arm64 and amd64)":  archBoth,
+	}
+	for in, want := range cases {
+		if got := parseArch(in); got != want {
+			t.Errorf("parseArch(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// Single-arch is supported by the product: `arch` accepts arm64 or amd64 alone,
+// install is arch-gated, and the node picker filters. Requiring both was my
+// invention and contradicted the schema.
+func TestRequiredPlatforms_SingleArchIsNotAnError(t *testing.T) {
+	if got := requiredPlatforms(archArm64); len(got) != 1 || got[0] != "linux/arm64" {
+		t.Errorf("arm64-only should require only arm64, got %v", got)
+	}
+	if got := requiredPlatforms(archAmd64); len(got) != 1 || got[0] != "linux/amd64" {
+		t.Errorf("amd64-only should require only amd64, got %v", got)
+	}
+	if got := requiredPlatforms(archBoth); len(got) != 2 {
+		t.Errorf("both should require two platforms, got %v", got)
+	}
+}
+
+func TestInferArch(t *testing.T) {
+	both := map[string]bool{"linux/amd64": true, "linux/arm64": true}
+	if got := inferArch(both); got != archBoth {
+		t.Errorf("got %q", got)
+	}
+	if got := inferArch(map[string]bool{"linux/arm64": true}); got != archArm64 {
+		t.Errorf("got %q", got)
+	}
+	if got := inferArch(map[string]bool{"linux/386": true}); got != archUnknown {
+		t.Errorf("neither of ours should be unknown, got %q", got)
+	}
+}
+
+// Every branch of the architecture decision, without touching a registry.
+func TestArchVerdict(t *testing.T) {
+	both := []string{"linux/amd64", "linux/arm64"}
+	amd := []string{"linux/amd64"}
+	arm := []string{"linux/arm64"}
+
+	blocking := func(ps []problem) int {
+		n := 0
+		for _, p := range ps {
+			if p.blocking {
+				n++
+			}
+		}
+		return n
+	}
+
+	// Honest single-arch declarations pass. This is the case the first version
+	// wrongly rejected.
+	if got := blocking(archVerdict("x", archArm64, arm)); got != 0 {
+		t.Errorf("arm64-only app declared arm64-only should pass, got %d blocking", got)
+	}
+	if got := blocking(archVerdict("x", archAmd64, amd)); got != 0 {
+		t.Errorf("amd64-only app declared amd64-only should pass, got %d blocking", got)
+	}
+	if got := blocking(archVerdict("x", archBoth, both)); got != 0 {
+		t.Errorf("both declared both should pass, got %d blocking", got)
+	}
+
+	// A false claim is what actually breaks an install on somebody's Pi.
+	if got := blocking(archVerdict("x", archBoth, amd)); got != 1 {
+		t.Errorf("claiming both while publishing only amd64 must fail, got %d blocking", got)
+	}
+	if got := blocking(archVerdict("x", archArm64, amd)); got != 1 {
+		t.Errorf("claiming arm64 while publishing only amd64 must fail, got %d blocking", got)
+	}
+
+	// "not sure" is answered, never punished.
+	ps := archVerdict("x", archUnknown, arm)
+	if blocking(ps) != 0 || len(ps) != 1 {
+		t.Errorf("unknown should produce one non-blocking note, got %+v", ps)
+	}
+	if !strings.Contains(ps[0].text, "arm64") {
+		t.Errorf("the note should tell them what was found: %q", ps[0].text)
+	}
+
+	// A platformless manifest cannot be judged from here; say so, do not guess.
+	if got := blocking(archVerdict("x", archBoth, nil)); got != 0 {
+		t.Errorf("undeclared platform should defer to a human, not block, got %d", got)
+	}
+}
