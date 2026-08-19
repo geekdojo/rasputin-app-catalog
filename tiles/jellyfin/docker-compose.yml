@@ -4,7 +4,7 @@
 # pin (ADR-0006 Decision 8).
 services:
   jellyfin:
-    image: jellyfin/jellyfin:10.9.11@sha256:fc1b51f4be3fba725e42dae2022d9c6a5b069acce01bef04d32fdee025dc511e
+    image: jellyfin/jellyfin:10.11.11@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db
     restart: unless-stopped
     volumes:
       - jellyfin-config:/config

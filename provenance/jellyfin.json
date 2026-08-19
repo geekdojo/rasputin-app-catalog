@@ -1,0 +1,22 @@
+{
+  "tile": "jellyfin",
+  "image": "jellyfin/jellyfin:10.11.11@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db",
+  "sourceAvailable": [],
+  "copyleft": [
+    "GPL-3+ with Autoconf Macros exception",
+    "GPL-3+ with Autoconf generic exception",
+    "GPL-3+ with Autoconf-data exception",
+    "GPL-3+ with Bison exception",
+    "GPL-3+ with Bison-2.2 exception",
+    "GPL-3+ with Font exception",
+    "GPL-3+ with Libtool exception",
+    "GPL-3+ with texinfo exception",
+    "GPL-3.0",
+    "GPL-3.0-only",
+    "GPL-3.0-or-later",
+    "GPL-3.0-or-later-WITH-Autoconf-exception-macro",
+    "GPL-3.0-with-autoconf-exception+",
+    "LGPL-3.0-only",
+    "LGPL-3.0-or-later"
+  ]
+}
