@@ -7,5 +7,7 @@
     "GPL-3.0-or-later",
     "GPL-3.0-with-autoconf-exception",
     "LGPL-3.0-or-later"
-  ]
+  ],
+  "appFixableCeiling": 62,
+  "acceptedReason": "2.17.0 -> 2.36.0 adds CVE-2025-48387 and CVE-2025-59343 and removes none, so the count rose 60 -> 62. Accepted because staying on 2.17.0 fixes none of the other 60 either and forgoes nineteen releases of upstream work. NOT accepted as normal: audiobookshelf has cleared ZERO of its 60 app-level fixable HIGH/CRITICAL across those nineteen releases, which is a statement about the project's dependency hygiene rather than about this bump. Revisit at the next ACC-1 bench: if the count is still climbing, carrying this tile is the question, not the pin."
 }

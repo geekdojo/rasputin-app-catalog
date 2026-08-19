@@ -16,6 +16,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -29,6 +30,7 @@ var imageRe = regexp.MustCompile(`(?m)^\s*image:\s*(\S+)`)
 
 func main() {
 	write := flag.Bool("write", false, "refresh checked-in provenance instead of verifying it")
+	baseline := flag.String("baseline", "", "git ref to compare against; scans the OLD and NEW pin of each changed tile in the same run")
 	root := flag.String("root", "tiles", "tile corpus directory")
 	provDir := flag.String("provenance", "provenance", "checked-in provenance directory")
 	flag.Parse()
@@ -41,6 +43,10 @@ func main() {
 	if len(tiles) == 0 {
 		fmt.Fprintln(os.Stderr, "tilescan: no shipping tiles found — refusing to pass trivially")
 		os.Exit(2)
+	}
+
+	if *baseline != "" {
+		os.Exit(compareAgainst(*baseline, tiles))
 	}
 
 	failures := 0
@@ -174,4 +180,107 @@ func shippingTiles(root string) ([]tile, error) {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].id < out[j].id })
 	return out, nil
+}
+
+// compareAgainst is the gate that makes unattended updates safe.
+//
+// It scans the OLD and the NEW pin of every changed tile IN THE SAME RUN, and
+// fails only if the app's own fixable count went UP. Two properties matter:
+//
+//   - Same run means the same CVE database for both sides. Comparing against a
+//     stored number is flaky by construction, because the count for an unchanged
+//     digest moves whenever the database does — a gate that fails for reasons no
+//     PR caused is a gate people learn to bypass.
+//
+//   - App-level only. Base-image findings are the upstream's rebuild to do, and
+//     gating on them would have blocked uptime-kuma 2.5.0, which is strictly
+//     better on the dependencies its maintainers actually chose.
+//
+// A ratchet, not an absolute bar: 169 app-level findings across five tiles is
+// today's floor, so "no known vulnerabilities" would be a permanently red build.
+// This says instead: an update may not make things worse.
+func compareAgainst(ref string, tiles []tile) int {
+	worse, checked := 0, 0
+	for _, t := range tiles {
+		oldImages, err := imagesAtRef(ref, t.id)
+		if err != nil || len(oldImages) == 0 {
+			fmt.Printf("  + %-18s new tile at %s — full review, no baseline to compare\n", t.id, ref)
+			worse++
+			continue
+		}
+		for i, img := range t.images {
+			if i >= len(oldImages) || oldImages[i] == img {
+				continue // unchanged pin: nothing to compare
+			}
+			checked++
+			_, newV, err1 := scan.Scan(t.id, img)
+			_, oldV, err2 := scan.Scan(t.id, oldImages[i])
+			if err1 != nil || err2 != nil {
+				fmt.Printf("  x %-18s scan failed (%v / %v)\n", t.id, err1, err2)
+				worse++
+				continue
+			}
+			was, now := appFixable(oldV), appFixable(newV)
+			if ceiling, ok := acceptedCeiling(t.id); ok && now <= ceiling && now > was {
+				fmt.Printf("  ~ %-18s app-level fixable %d → %d, within the recorded ceiling of %d\n", t.id, was, now, ceiling)
+				continue
+			}
+			switch {
+			case now > was:
+				fmt.Printf("  x %-18s app-level fixable ROSE %d → %d — this update makes it worse\n", t.id, was, now)
+				fmt.Printf("      accept it by setting appFixableCeiling + acceptedReason in provenance/%s.json\n", t.id)
+				worse++
+			case now < was:
+				fmt.Printf("  ✓ %-18s app-level fixable %d → %d\n", t.id, was, now)
+			default:
+				fmt.Printf("  ✓ %-18s app-level fixable unchanged at %d\n", t.id, now)
+			}
+		}
+	}
+	if checked == 0 && worse == 0 {
+		fmt.Printf("\nno tile images changed against %s\n", ref)
+		return 0
+	}
+	fmt.Printf("\n%d changed image(s) compared against %s, %d regression(s)\n", checked, ref, worse)
+	if worse > 0 {
+		return 1
+	}
+	return 0
+}
+
+// acceptedCeiling reads a reviewed exception from the checked-in provenance.
+// Absent or unreasoned means no exception, which is the safe default.
+func acceptedCeiling(id string) (int, bool) {
+	blob, err := os.ReadFile(filepath.Join("provenance", id+".json"))
+	if err != nil {
+		return 0, false
+	}
+	var p scan.Provenance
+	if json.Unmarshal(blob, &p) != nil {
+		return 0, false
+	}
+	return p.Ceiling()
+}
+
+func appFixable(vs []scan.Vuln) int {
+	n := 0
+	for _, v := range vs {
+		if v.Fixable() && v.AppLevel() {
+			n++
+		}
+	}
+	return n
+}
+
+func imagesAtRef(ref, id string) ([]string, error) {
+	out, err := exec.Command("git", "show", fmt.Sprintf("%s:tiles/%s/docker-compose.yml", ref, id)).Output()
+	if err != nil {
+		return nil, err
+	}
+	var imgs []string
+	for _, m := range imageRe.FindAllStringSubmatch(string(out), -1) {
+		imgs = append(imgs, m[1])
+	}
+	sort.Strings(imgs)
+	return imgs, nil
 }

@@ -38,6 +38,21 @@ type Provenance struct {
 	Image           string   `json:"image"`
 	SourceAvailable []string `json:"sourceAvailable"`
 	Copyleft        []string `json:"copyleft"`
+
+	// AppFixableCeiling lets an update raise the app-level count when there is
+	// a reason worth writing down. Modelled on the SAST register rather than a
+	// silent baseline: raising it is a diff someone reviews, and it is refused
+	// without AcceptedReason, so the number can never drift upward unattended.
+	//
+	// The bar for using it is a JUSTIFIED increase, not an inconvenient gate.
+	AppFixableCeiling int    `json:"appFixableCeiling,omitempty"`
+	AcceptedReason    string `json:"acceptedReason,omitempty"`
+}
+
+// Ceiling reports the accepted app-level ceiling, and whether it is usable. A
+// ceiling with no reason is not usable — that is the whole point.
+func (p Provenance) Ceiling() (int, bool) {
+	return p.AppFixableCeiling, p.AppFixableCeiling > 0 && strings.TrimSpace(p.AcceptedReason) != ""
 }
 
 type trivyReport struct {

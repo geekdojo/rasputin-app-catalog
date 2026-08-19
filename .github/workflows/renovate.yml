@@ -1,0 +1,43 @@
+name: renovate
+
+# SELF-HOSTED, deliberately. Mend's hosted app is one click and would give an
+# external company write access to the repo that will hold the catalog signing
+# surface and, later, an agent-driven submission pipeline. #166 exists to keep
+# that CI narrow; installing a third-party app with PR-write cuts against it for
+# no gain we cannot get here.
+on:
+  schedule:
+    - cron: "17 8 * * 1"
+  workflow_dispatch:
+    inputs:
+      dryRun:
+        description: "Run without opening PRs"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: renovate
+  cancel-in-progress: false
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: renovate
+        uses: renovatebot/github-action@v41
+        with:
+          configurationFile: renovate.json
+          token: ${{ secrets.RENOVATE_TOKEN }}
+        env:
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
+          RENOVATE_DRY_RUN: ${{ inputs.dryRun && 'full' || '' }}
+          # Renovate proposes; the gates decide. Automerge only happens when the
+          # required checks pass, and those include the app-level vulnerability
+          # comparison — so an update that makes a tile worse cannot land
+          # unattended even though nobody reviewed it.
+          RENOVATE_REQUIRE_CONFIG: "required"
