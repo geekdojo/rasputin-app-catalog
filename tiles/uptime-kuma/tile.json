@@ -1,0 +1,24 @@
+{
+  "id": "uptime-kuma",
+  "name": "Uptime Kuma",
+  "tagline": "A self-hosted status board for everything you run.",
+  "description": "Monitor your services, get an all-green dashboard, and publish a shareable status page. The most-loved monitoring app in the self-hosted community.",
+  "collection": "essentials",
+  "arch": "both",
+  "placementHint": "any",
+  "ramFloorMB": 256,
+  "exposureDefault": "lan-only",
+  "ports": [
+    {
+      "name": "web",
+      "container": 3001,
+      "published": 3001,
+      "protocol": "tcp",
+      "primary": true
+    }
+  ],
+  "website": "https://github.com/louislam/uptime-kuma",
+  "icon": "\ud83d\udfe2",
+  "postInstall": "Open it and create your admin account on the first screen, then add your first monitor.",
+  "category": "monitoring"
+}
