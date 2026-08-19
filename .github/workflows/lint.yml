@@ -1,14 +1,17 @@
 name: lint
 
+# NO `paths:` FILTER ON pull_request, deliberately. Both PR jobs here are
+# REQUIRED status checks, and a required check that never runs does not pass —
+# it stays pending, and the PR is blocked forever with no way to clear it. A
+# path filter on a workflow whose jobs are required is therefore a trap: it
+# works for every PR that touches the filtered paths and silently wedges the
+# first one that does not (a README edit, a LICENSE fix).
+#
+# The cost of always running is small and bounded: tilescan compares the tile
+# images against the base ref first and exits immediately when none changed, so
+# a docs PR pays for a checkout and a Go build, not a vulnerability scan.
 on:
   pull_request:
-    paths:
-      - "tiles/**"
-      - "provenance/**"
-      - "cmd/**"
-      - "internal/**"
-      - "go.mod"
-      - ".github/workflows/lint.yml"
   push:
     branches: [main]
   schedule:
@@ -46,8 +49,10 @@ jobs:
     # new pin IN THE SAME RUN so the CVE database is identical for both sides.
     # Comparing against a stored number would fail for reasons no PR caused.
     #
-    # Runs only when tiles change: you may not alter a tile you cannot verify,
-    # but a docs PR should not be hostage to Docker Hub.
+    # Always runs on a PR so it can be a required check (see the trigger note).
+    # tilescan exits immediately when no tile image changed, so a docs PR does
+    # not pay for a scan — but a PR that DOES change a tile cannot merge without
+    # one, which is the rule: you may not alter a tile you cannot verify.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
