@@ -1,8 +1,11 @@
-# Pin is provisional — the ACC-1 bench gate re-pins before ship.
+# Version is provisional — the ACC-1 bench gate re-pins before ship. The DIGEST is
+# what actually fixes the contents: a tag is mutable at the registry however
+# specific it looks, so the tag here is human-readable sugar and the digest is the
+# pin (ADR-0006 Decision 8).
 # Set a real admin password before exposing this beyond the LAN.
 services:
   pihole:
-    image: pihole/pihole:2024.07.0
+    image: pihole/pihole:2024.07.0@sha256:0def896a596e8d45780b6359dbf82fc8c75ef05b97e095452e67a0a4ccc95377
     restart: unless-stopped
     environment:
       TZ: "Etc/UTC"

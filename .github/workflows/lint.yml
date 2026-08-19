@@ -1,0 +1,48 @@
+name: lint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Weekly, and deliberately NOT on every PR: the arch probe below talks to
+    # Docker Hub and ghcr, and a PR gate that depends on two third-party
+    # registries fails for reasons the contributor cannot fix. The offline
+    # corpus test is the PR gate; this catches an upstream that drops an
+    # architecture out from under a pin.
+    - cron: "17 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  tiles:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt needed on:"; echo "$unformatted"; exit 1
+          fi
+      - name: vet
+        run: go vet ./...
+      - name: tile corpus (offline)
+        run: go test ./... && go run ./cmd/tilelint
+
+  arch:
+    # Registry-dependent, so it runs on a schedule and on main rather than
+    # gating a contributor's PR on Docker Hub's availability.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+      - name: architecture claims match the registries
+        run: go run ./cmd/tilelint -arch
