@@ -92,7 +92,7 @@ func report(id, img string, prov scan.Provenance, vulns []scan.Vuln, provDir str
 			} else if !reflect.DeepEqual(prev, prov) {
 				// A re-pin that changes what the image contains is a DECISION,
 				// not a version bump. This is the mechanism behind the app
-				// catalog policy that treats a licence change on a tile we ship
+				// catalog policy that treats a license change on a tile we ship
 				// as needing a decision rather than a note.
 				fmt.Printf("  x %-18s provenance drift — review before accepting:\n", id)
 				fmt.Printf("      was  source-available=%v copyleft=%v\n", prev.SourceAvailable, prev.Copyleft)
@@ -102,10 +102,10 @@ func report(id, img string, prov scan.Provenance, vulns []scan.Vuln, provDir str
 		}
 	}
 
-	// Source-available licences are not open source and change what we may
+	// Source-available licenses are not open source and change what we may
 	// ship. Finding one is a hard stop whether or not it is new.
 	if len(prov.SourceAvailable) > 0 {
-		fmt.Printf("  x %-18s SOURCE-AVAILABLE licence present: %s\n", id, strings.Join(prov.SourceAvailable, ", "))
+		fmt.Printf("  x %-18s SOURCE-AVAILABLE license present: %s\n", id, strings.Join(prov.SourceAvailable, ", "))
 		failures++
 	}
 

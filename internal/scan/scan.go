@@ -1,5 +1,5 @@
 // Package scan derives the supply-chain facts behind carrying a tile: which
-// licences its image actually contains, and which of its vulnerabilities we
+// licenses its image actually contains, and which of its vulnerabilities we
 // could do something about.
 //
 // Carrying a tile in the first-party catalog is an endorsement. This is the
@@ -16,21 +16,21 @@ import (
 	"strings"
 )
 
-// SourceAvailable licences are the ones that change what Rasputin may ship.
+// SourceAvailable licenses are the ones that change what Rasputin may ship.
 // They are NOT open source, and a tile acquiring one is a rug-pull in progress
 // — Planka removing SSO from its community edition is the shape, and the app
 // catalog design already flags relicensing as needing a decision rather than a
 // note. Finding one FAILS the gate.
 var SourceAvailable = []string{"SSPL", "BUSL", "BUSINESS SOURCE", "ELASTIC-2", "ELASTIC LICENSE", "COMMONS-CLAUSE", "COMMONS CLAUSE"}
 
-// Copyleft licences are legitimate and common in this space — Immich is AGPL,
+// Copyleft licenses are legitimate and common in this space — Immich is AGPL,
 // and refusing them would gut the catalog. They are tracked, not refused: a
 // tile that ACQUIRES one on a re-pin is a decision event, which the checked-in
 // provenance diff surfaces.
 var Copyleft = []string{"AGPL", "GPL-3", "SSPL"}
 
 // Provenance is the checked-in, reviewable summary for one tile. It records
-// only what is stable across a base-image bump: 182 distinct licences show up
+// only what is stable across a base-image bump: 182 distinct licenses show up
 // in a single Debian-based image, so an inventory diff would fire constantly
 // and teach everyone to ignore it. Watchlist hits are the low-noise signal.
 type Provenance struct {
@@ -40,7 +40,7 @@ type Provenance struct {
 	Copyleft        []string `json:"copyleft"`
 
 	// AppFixableCeiling lets an update raise the app-level count when there is
-	// a reason worth writing down. Modelled on the SAST register rather than a
+	// a reason worth writing down. Modeled on the SAST register rather than a
 	// silent baseline: raising it is a diff someone reviews, and it is refused
 	// without AcceptedReason, so the number can never drift upward unattended.
 	//

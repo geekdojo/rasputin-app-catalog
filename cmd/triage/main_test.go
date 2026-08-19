@@ -94,7 +94,7 @@ func TestEchoUser_DefusesMentionsAndMarkdown(t *testing.T) {
 }
 
 // A preview tile is on the roadmap but not installable, so requesting it is a
-// vote to prioritise the bench — not a duplicate. Conflating the two turns the
+// vote to prioritize the bench — not a duplicate. Conflating the two turns the
 // most useful signal the intake collects into a rejection.
 func TestTileStatus_PreviewIsNotTheSameAsShipped(t *testing.T) {
 	if err := os.Chdir("../.."); err != nil {

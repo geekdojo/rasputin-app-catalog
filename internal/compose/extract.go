@@ -20,7 +20,7 @@ import (
 )
 
 // file is the subset of the compose spec that carries safety meaning. Anything
-// not named here is irrelevant to the checks and deliberately not modelled —
+// not named here is irrelevant to the checks and deliberately not modeled —
 // this is not a compose implementation.
 type file struct {
 	Services map[string]service `yaml:"services"`

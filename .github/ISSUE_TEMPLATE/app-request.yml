@@ -51,7 +51,7 @@ body:
     id: upstream
     attributes:
       label: Upstream project
-      description: Source repository, so licence and project health can be checked.
+      description: Source repository, so license and project health can be checked.
       placeholder: https://github.com/paperless-ngx/paperless-ngx
     validations: { required: true }
   - type: dropdown
@@ -103,7 +103,7 @@ body:
     attributes:
       label: Before submitting
       options:
-        - label: It runs without an account, licence key, or paid feed to be useful
+        - label: It runs without an account, license key, or paid feed to be useful
           required: false
         - label: It is safe on a LAN by default (does not expect to be internet-exposed)
           required: false

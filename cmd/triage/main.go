@@ -102,11 +102,11 @@ func main() {
 				"`%s` already ships in the catalog. If it is broken, out of date, or has relicensed, that is a different report.", echoUser(id))})
 		case statusPreview:
 			// NOT a blocking failure. A preview tile is on the roadmap and not
-			// installable, so asking for it is a legitimate request to prioritise
+			// installable, so asking for it is a legitimate request to prioritize
 			// it — arguably the most useful signal the intake can collect, since
 			// it is demand for something already judged worth carrying.
 			problems = append(problems, problem{false, fmt.Sprintf(
-				"`%s` is already a **preview** tile — authored, on the roadmap, not yet installable. It becomes installable once it clears the hardware bench, so this request is read as a vote to prioritise that rather than as a new app.", echoUser(id))})
+				"`%s` is already a **preview** tile — authored, on the roadmap, not yet installable. It becomes installable once it clears the hardware bench, so this request is read as a vote to prioritize that rather than as a new app.", echoUser(id))})
 		}
 	}
 
@@ -295,7 +295,7 @@ const (
 // tileStatus reports whether we already carry this id, and in what sense. The
 // distinction matters to the requester: "we ship this" and "we plan to ship
 // this" deserve different answers, and conflating them turns a useful
-// prioritisation signal into a rejection.
+// prioritization signal into a rejection.
 func tileStatus(id string) string {
 	blob, err := os.ReadFile("tiles/" + id + "/tile.json")
 	if err != nil {
