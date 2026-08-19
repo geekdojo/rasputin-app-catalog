@@ -4,7 +4,7 @@
 # pin (ADR-0006 Decision 8).
 services:
   navidrome:
-    image: deluan/navidrome:0.53.3@sha256:d864c5ddbae508920b157d73b08bd48e93ec8c422003a491edd01a889497582a
+    image: deluan/navidrome:0.63.2@sha256:9012939114fbb1bb641b81cf96dec5ded15f0aafefe8d47a511d7cb919658e40
     restart: unless-stopped
     environment:
       ND_LOGLEVEL: info

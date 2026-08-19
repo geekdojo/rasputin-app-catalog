@@ -1,0 +1,41 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":dependencyDashboard"],
+  "timezone": "America/Los_Angeles",
+  "schedule": ["* 0-6 * * 1"],
+  "prConcurrentLimit": 3,
+  "prHourlyLimit": 0,
+  "docker-compose": { "managerFilePatterns": ["/tiles/.+/docker-compose\\.yml$/"] },
+  "packageRules": [
+    {
+      "description": "Every tile bump arrives as ONE weekly PR. Twenty-three tiles updating independently is a firehose nobody reads, and a review queue that large gets rubber-stamped, which is worse than no review.",
+      "matchManagers": ["docker-compose"],
+      "matchUpdateTypes": ["patch", "minor", "digest"],
+      "groupName": "tile images",
+      "commitMessageTopic": "tile images",
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true
+    },
+    {
+      "description": "Major bumps are decisions, never updates, and are never automerged. uptime-kuma 1.x to 2.x is the worked example: a different base image, a migration, and an owed ACC-1 bench. Each gets its own PR so it can be argued on its own terms.",
+      "matchManagers": ["docker-compose"],
+      "matchUpdateTypes": ["major"],
+      "groupName": null,
+      "automerge": false,
+      "labels": ["major-bump", "needs-bench"],
+      "prBodyNotes": [
+        ":warning: **Major version.** Needs an ACC-1 bench before shipping, and the compose stack may need changes upstream made. Check the app-level vulnerability comparison in CI: a raw count increase is often a stale base image rather than worse dependencies — see `provenance/`."
+      ]
+    },
+    {
+      "description": "Keep Renovate's own action current; it is the thing opening PRs against the repo that will hold the signing surface.",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true
+    }
+  ],
+  "vulnerabilityAlerts": { "enabled": true, "labels": ["security"], "automerge": false }
+}
