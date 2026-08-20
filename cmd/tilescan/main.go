@@ -204,8 +204,16 @@ func compareAgainst(ref string, tiles []tile) int {
 	for _, t := range tiles {
 		oldImages, err := imagesAtRef(ref, t.id)
 		if err != nil || len(oldImages) == 0 {
-			fmt.Printf("  + %-18s new tile at %s — full review, no baseline to compare\n", t.id, ref)
-			worse++
+			// A NEW TILE IS NOT A REGRESSION. Counting it as one made this gate
+			// unsatisfiable for the thing the intake pipeline exists to produce:
+			// supply-chain is a required check, so no new tile could ever merge.
+			// Caught by the first live agent run (#165 validating against
+			// linkding), because no amount of local testing had ever added a tile.
+			//
+			// Scan it in full and REPORT, so a reviewer sees the numbers they are
+			// being asked to accept. Fail only on what is wrong in absolute terms.
+			checked++
+			worse += reportNewTile(t)
 			continue
 		}
 		for i, img := range t.images {
@@ -260,6 +268,42 @@ func acceptedCeiling(id string) (int, bool) {
 		return 0, false
 	}
 	return p.Ceiling()
+}
+
+// reportNewTile scans a tile that has no baseline and prints what a reviewer is
+// being asked to take on. It returns 1 only for a genuine defect — a
+// source-available license — never for the tile merely being new.
+func reportNewTile(t tile) int {
+	bad := 0
+	for _, img := range t.images {
+		prov, vulns, err := scan.Scan(t.id, img)
+		if err != nil {
+			fmt.Printf("  x %-18s %v\n", t.id, err)
+			bad++
+			continue
+		}
+		app, base, unfixed := 0, 0, 0
+		for _, v := range vulns {
+			switch {
+			case !v.Fixable():
+				unfixed++
+			case v.AppLevel():
+				app++
+			default:
+				base++
+			}
+		}
+		fmt.Printf("  + %-18s NEW — %d app-level fixable, %d base-image, %d unfixed\n", t.id, app, base, unfixed)
+		if len(prov.SourceAvailable) > 0 {
+			fmt.Printf("  x %-18s SOURCE-AVAILABLE license present: %s\n", t.id, strings.Join(prov.SourceAvailable, ", "))
+			bad++
+		}
+		if len(prov.Copyleft) > 0 {
+			fmt.Printf("  · %-18s copyleft present: %s\n", t.id, strings.Join(prov.Copyleft[:min(4, len(prov.Copyleft))], ", "))
+		}
+		fmt.Printf("  · %-18s before merging: run `go run ./cmd/tilescan -write` and review provenance/%s.json\n", t.id, t.id)
+	}
+	return bad
 }
 
 func appFixable(vs []scan.Vuln) int {
