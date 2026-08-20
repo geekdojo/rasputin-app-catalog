@@ -102,6 +102,47 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: go run ./cmd/tilescan -baseline "origin/$BASE_REF"
 
+  version:
+    # A PR that changes the corpus must bump VERSION. The catalog version is
+    # monotonic (ADR-0006 Decision 5) and the source of truth is a tracked file
+    # bumped by PR — reviewable in a diff, which is why it was chosen over
+    # deriving the number at publish time. The cost of a reviewable file is
+    # that it can be forgotten, so this is the gate that makes it safe.
+    #
+    # Only fires when tiles/ actually changed: a README or workflow edit has
+    # nothing to publish and must not demand a version.
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: a corpus change must bump VERSION
+        # BASE_REF through env, never interpolated into the script — same
+        # reasoning as the supply-chain job above.
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -eu
+          base="origin/$BASE_REF"
+          if git diff --quiet "$base"...HEAD -- tiles/; then
+            echo "tiles/ unchanged — no version bump required."
+            exit 0
+          fi
+          have="$(tr -d '[:space:]' < VERSION)"
+          # A base ref predating the VERSION file reads as 0, so the very first
+          # corpus PR after it lands is not blocked by its own absence.
+          want="$(git show "$base:VERSION" 2>/dev/null | tr -d '[:space:]' || true)"
+          [ -n "$want" ] || want=0
+          case "$have" in ''|*[!0-9]*) echo "::error::VERSION must be a positive integer, got '$have'"; exit 1;; esac
+          echo "tiles/ changed. VERSION on $BASE_REF is $want; on this branch it is $have."
+          if [ "$have" -le "$want" ]; then
+            echo "::error::This PR changes tiles/ but does not raise VERSION above $want."
+            echo "::error::Every corpus change is a new catalog, and a cluster refuses a bundle whose version does not exceed the one it holds — so an unbumped corpus publishes an artifact the whole fleet ignores."
+            exit 1
+          fi
+
   arch:
     # Registry-dependent, so it runs on a schedule and on main rather than
     # gating a contributor's PR on Docker Hub's availability.

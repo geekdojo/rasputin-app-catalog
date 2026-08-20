@@ -1,0 +1,187 @@
+name: catalog-release
+
+# Builds the signed catalog bundle (ADR-0006 Decision 2) and publishes it as a
+# GitHub release asset. The control plane fetches and verifies it (#160).
+#
+# TWO JOBS, DELIBERATELY SPLIT.
+#
+# `build` runs on every push to main and every PR. It proves the bundle path
+# continuously and needs no secrets.
+#
+# `publish` is workflow_dispatch ONLY for now, because the catalog signing leaf
+# does not exist yet: it needs an EKU under a real IANA PEN, and the request
+# (PHQ7-ICU-LU2) is outstanding. Wiring publish to `push` today would turn main
+# red on every merge for a credential nobody can mint. Flip it to push once the
+# leaf lands — tracked on geekdojo/geekdojo-brain#192.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "Release channel. dev publishes as a prerelease."
+        type: choice
+        options: [dev, stable]
+        default: dev
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build the catalog bundle
+        env:
+          # Bound through env, never interpolated into the script body — a
+          # `${{ }}` expansion inside `run:` is a template-injection sink, and
+          # this repo's own intake workflow lectures about exactly that.
+          SOURCE: ${{ github.repository }}@${{ github.sha }}
+        run: |
+          set -eu
+          version="$(tr -d '[:space:]' < VERSION)"
+          # Reproducible: the same commit must build byte-identical output, so
+          # the timestamp comes from the commit rather than the clock.
+          SOURCE_DATE_EPOCH="$(git log -1 --pretty=%ct)"
+          export SOURCE_DATE_EPOCH
+          go run ./cmd/catalogbundle -version "$version" -source "$SOURCE" -o catalog.json
+          echo "----- catalog.json (head) -----"
+          head -c 400 catalog.json; echo
+
+      - name: Prove the build is reproducible
+        run: |
+          set -eu
+          version="$(tr -d '[:space:]' < VERSION)"
+          SOURCE_DATE_EPOCH="$(git log -1 --pretty=%ct)"
+          export SOURCE_DATE_EPOCH
+          go run ./cmd/catalogbundle -version "$version" -source "${GITHUB_REPOSITORY}@${GITHUB_SHA}" -o catalog-again.json
+          cmp catalog.json catalog-again.json \
+            || { echo "::error::two builds of one commit differ — the bundle is not reproducible"; exit 1; }
+          rm -f catalog-again.json
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: catalog-bundle
+          path: catalog.json
+          if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+
+      - name: Refuse to republish or go backwards
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          version="$(tr -d '[:space:]' < VERSION)"
+          case "$version" in ''|*[!0-9]*) echo "::error::VERSION must be a positive integer, got '$version'"; exit 1;; esac
+
+          # Decision 5 is enforced at the CLUSTER, but a publisher that can emit
+          # a duplicate or lower version has manufactured a bundle every cluster
+          # will refuse — a broken release that looks successful here.
+          latest="$(gh release list --limit 100 --json tagName --jq '[.[].tagName|select(startswith("catalog-v"))|ltrimstr("catalog-v")|tonumber]|max // 0')"
+          echo "VERSION=$version, highest published=$latest"
+          if [ "$version" -le "$latest" ]; then
+            echo "::error::VERSION ($version) must exceed the highest published catalog ($latest). Bump VERSION in a PR."
+            exit 1
+          fi
+
+      - name: Stage signing material
+        id: stage
+        env:
+          LEAF_KEY:  ${{ secrets.RASPUTIN_CATALOG_LEAF_KEY }}
+          LEAF_CERT: ${{ secrets.RASPUTIN_CATALOG_LEAF_CERT }}
+          ROOT_PEM:  ${{ vars.RASPUTIN_ROOT_CA_PEM }}
+        run: |
+          set -eu
+          if [ -z "${LEAF_KEY:-}" ] || [ -z "${LEAF_CERT:-}" ] || [ -z "${ROOT_PEM:-}" ]; then
+            echo "::error::missing RASPUTIN_CATALOG_LEAF_KEY / RASPUTIN_CATALOG_LEAF_CERT (repo secrets) or RASPUTIN_ROOT_CA_PEM (org variable)."
+            echo "::error::The catalog leaf is DISTINCT from the release leaf by design (ADR-0006 Decision 3): it carries the catalog EKU and not generic codeSigning, so a catalog key cannot sign a RAUC bundle. It cannot be minted until the IANA PEN lands — geekdojo/geekdojo-brain#192."
+            exit 1
+          fi
+          sudo mkdir -p /mnt/rasputin-sign
+          sudo mount -t tmpfs -o size=8M,mode=0700,uid=$(id -u),gid=$(id -g) tmpfs /mnt/rasputin-sign
+          umask 077
+          printf '%s' "$LEAF_KEY"  > /mnt/rasputin-sign/leaf.key
+          printf '%s' "$LEAF_CERT" > /mnt/rasputin-sign/leaf-chain.pem
+          printf '%s' "$ROOT_PEM"  > /mnt/rasputin-sign/root-ca.pem
+          awk -v leaf=/mnt/rasputin-sign/leaf.pem \
+              -v inter=/mnt/rasputin-sign/intermediate.pem \
+              '/-----BEGIN CERTIFICATE-----/{i++} {if(i==1)print > leaf; else if(i==2)print > inter}' \
+              /mnt/rasputin-sign/leaf-chain.pem
+          # Sanity-check the chain before signing anything with it.
+          openssl verify -CAfile /mnt/rasputin-sign/root-ca.pem \
+            -untrusted /mnt/rasputin-sign/intermediate.pem \
+            -purpose any /mnt/rasputin-sign/leaf.pem \
+            || { echo "::error::catalog leaf does not chain to the Rasputin root"; exit 1; }
+
+      - name: Build and sign
+        env:
+          SOURCE: ${{ github.repository }}@${{ github.sha }}
+        run: |
+          set -eu
+          version="$(tr -d '[:space:]' < VERSION)"
+          SOURCE_DATE_EPOCH="$(git log -1 --pretty=%ct)"
+          export SOURCE_DATE_EPOCH
+          go run ./cmd/catalogbundle -version "$version" -source "$SOURCE" -o catalog.json
+
+          openssl cms -sign -binary \
+            -in       catalog.json \
+            -signer   /mnt/rasputin-sign/leaf.pem \
+            -certfile /mnt/rasputin-sign/intermediate.pem \
+            -inkey    /mnt/rasputin-sign/leaf.key \
+            -outform DER \
+            -out      catalog.json.sig
+
+          # Prove the signature verifies BEFORE it is published. `-purpose any`
+          # is required and is not laziness: the catalog leaf carries only the
+          # catalog EKU, deliberately NOT generic codeSigning (Decision 3), and
+          # openssl's default purpose check rejects a leaf on that basis alone.
+          openssl cms -verify -binary -inform DER \
+            -in catalog.json.sig -content catalog.json \
+            -CAfile /mnt/rasputin-sign/root-ca.pem -purpose any -out /dev/null \
+            || { echo "::error::catalog.json.sig does not verify against the root CA"; exit 1; }
+          ls -l catalog.json catalog.json.sig
+
+      - name: Wipe signing material
+        if: always()
+        run: sudo umount /mnt/rasputin-sign 2>/dev/null || true
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          set -eu
+          version="$(tr -d '[:space:]' < VERSION)"
+          flag=""
+          [ "$CHANNEL" = "stable" ] || flag="--prerelease"
+          # shellcheck disable=SC2086
+          gh release create "catalog-v${version}" $flag \
+            --title "Rasputin App Catalog v${version}" \
+            --notes "Signed catalog bundle. Verify with the Rasputin root CA:
+
+    openssl cms -verify -binary -inform DER -in catalog.json.sig \\
+      -content catalog.json -CAfile rasputin-root-ca.pem -purpose any
+
+Root CA: https://rasputin.geekdojo.com/rasputin-root-ca.pem" \
+            catalog.json catalog.json.sig
