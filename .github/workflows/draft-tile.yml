@@ -55,15 +55,22 @@ jobs:
       issues: read           # to read the request
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          persist-credentials: false
           fetch-depth: 0
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: "1.26"
 
-      - uses: aquasecurity/setup-trivy@v0.3.1
+      - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          # Pin the TOOL as well as the action. setup-trivy installs
+          # "latest" by default, so a scan result would depend on when it
+          # ran — and the supply-chain gate compares two scans expecting
+          # the same engine on both sides.
+          version: v0.74.0
 
       # Refuse anything triage has not cleared. Without this the dispatch input
       # is a way to point the agent at an arbitrary issue and skip validation —
@@ -95,7 +102,7 @@ jobs:
           wc -c /tmp/request.md
 
       - name: draft the tile
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@e2a4b761cd77a1138a5b41410eda9b28581f9bcd # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           show_full_output: "true"
