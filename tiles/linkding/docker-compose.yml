@@ -1,0 +1,24 @@
+# Linkding — self-hosted bookmark manager.
+#
+# Smallest stack that runs the app: a single container, SQLite on a named
+# volume, web UI on :9090. This is the BASE image — it does bookmarking,
+# tags, full-text search over saved metadata, and a REST API. Local HTML
+# snapshot archiving (the requester's headline feature) is NOT in this image;
+# it needs the `1.36.0-plus` variant plus Chromium and ~1 GB RAM. See the PR.
+services:
+  linkding:
+    image: sissbruecker/linkding:1.36.0@sha256:6e2cfd1c32dae78ff6d0fd3000562556f123502d4b79f4e3e53b4b0592022edd
+    container_name: linkding
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - linkding-data:/etc/linkding/data
+    environment:
+      # linkding has no open registration. This pre-creates an "admin" account
+      # on first boot; its password is set out-of-band (see the tile's
+      # postInstall), so no credential is baked into the image.
+      LD_SUPERUSER_NAME: admin
+
+volumes:
+  linkding-data:

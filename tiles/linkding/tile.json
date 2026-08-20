@@ -1,0 +1,23 @@
+{
+  "id": "linkding",
+  "name": "Linkding",
+  "tagline": "Bookmarks you can actually search.",
+  "description": "A fast, self-hosted bookmark manager with tags, full-text search over your saved links, and a REST API. Local page archiving needs the 'plus' image variant (see postInstall).",
+  "collection": "everyday",
+  "category": "productivity",
+  "arch": "both",
+  "ramFloorMB": 256,
+  "exposureDefault": "lan-only",
+  "status": "preview",
+  "website": "https://github.com/sissbruecker/linkding",
+  "icon": "🔗",
+  "ports": [
+    {
+      "name": "http",
+      "container": 9090,
+      "published": 9090,
+      "primary": true
+    }
+  ],
+  "postInstall": "Linkding has no self-service signup. This stack pre-creates an 'admin' account; set its password with `docker exec -it linkding python manage.py changepassword admin`, then open it and sign in. Local HTML archiving requires switching to the linkding 'plus' image."
+}
