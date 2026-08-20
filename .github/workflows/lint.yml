@@ -29,8 +29,10 @@ jobs:
   tiles:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: "1.26"
       - name: gofmt
@@ -44,6 +46,26 @@ jobs:
       - name: tile corpus (offline)
         run: go test ./... && go run ./cmd/tilelint
 
+  workflows:
+    # zizmor audits the workflows themselves. It is a REQUIRED check and not an
+    # advisory one, because the class of bug it finds is invisible in review:
+    # its first run on this repo found a template injection in the job directly
+    # below — `origin/${{ github.base_ref }}` inline in a run block — in the same
+    # repo whose intake workflow carries three paragraphs on why never to do
+    # that. Discipline written in comments does not hold; a gate does.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.13"
+      - name: audit the workflows
+        run: |
+          pip install --quiet zizmor==1.29.0
+          zizmor --format plain .github/workflows/
+
   supply-chain:
     # Gates on the app's OWN dependency count not rising, comparing the old and
     # new pin IN THE SAME RUN so the CVE database is identical for both sides.
@@ -56,14 +78,29 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: "1.26"
-      - uses: aquasecurity/setup-trivy@v0.3.1
+      - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          # Pin the TOOL as well as the action. setup-trivy installs
+          # "latest" by default, so a scan result would depend on when it
+          # ran — and the supply-chain gate compares two scans expecting
+          # the same engine on both sides.
+          version: v0.74.0
       - name: app-level vulnerabilities must not increase
-        run: go run ./cmd/tilescan -baseline origin/${{ github.base_ref }}
+        # BASE_REF via env, not interpolated into the run block. A branch name
+        # is attacker-influenced text and git permits characters a shell will
+        # act on, so `origin/${{ github.base_ref }}` inline is the same template
+        # injection this repo's intake workflow was written to avoid. Caught by
+        # zizmor on its first run, in the one file that had lectured about it.
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: go run ./cmd/tilescan -baseline "origin/$BASE_REF"
 
   arch:
     # Registry-dependent, so it runs on a schedule and on main rather than
@@ -71,8 +108,10 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: "1.26"
       - name: architecture claims match the registries
