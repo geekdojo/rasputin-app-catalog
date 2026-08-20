@@ -1,0 +1,109 @@
+name: Request an app
+description: Ask for an app to be added to the Rasputin catalog.
+title: "app request: "
+labels: ["app-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an app.
+
+        **What happens next.** A bot checks the request is complete and that the image
+        really exists and runs on both architectures Rasputin ships. If it clears that,
+        it is queued for evaluation — deployed on real Pi 5 and N100 hardware, measured,
+        and scanned. Passing all of that is what earns a tile.
+
+        Worth setting expectations on: Rasputin's catalog is **curated, not
+        comprehensive** — a good app can still be declined because it does not fit the
+        set.
+
+        A single-architecture app is fine. Rasputin runs arm64 (Pi 5) and amd64 (N100)
+        nodes, and a tile declares which it supports; install offers only the nodes that
+        can actually run it. An app that runs everywhere is worth more on a mixed
+        cluster, but running on one architecture is not a disqualification.
+  - type: input
+    id: app_id
+    attributes:
+      label: Proposed tile id
+      description: >
+        Lowercase letters, digits and hyphens only. This becomes part of the app's URL
+        on a cluster (`<id>.<cluster>.internal`), so it is permanent once shipped —
+        renaming one breaks the address of an app somebody already installed.
+      placeholder: paperless-ngx
+    validations: { required: true }
+  - type: input
+    id: name
+    attributes:
+      label: App name
+      placeholder: Paperless-ngx
+    validations: { required: true }
+  - type: input
+    id: image
+    attributes:
+      label: Container image
+      description: >
+        The published image, with a specific version tag — not `latest`. The bot checks
+        the registry to confirm it really publishes the architectures you claim below,
+        rather than taking the tag's word for it.
+      placeholder: ghcr.io/paperless-ngx/paperless-ngx:2.13.5
+    validations: { required: true }
+  - type: input
+    id: upstream
+    attributes:
+      label: Upstream project
+      description: Source repository, so license and project health can be checked.
+      placeholder: https://github.com/paperless-ngx/paperless-ngx
+    validations: { required: true }
+  - type: dropdown
+    id: arch
+    attributes:
+      label: Which architectures does it support?
+      description: >
+        Pick "not sure" and the bot will tell you what the registry actually publishes.
+      options:
+        - both (arm64 and amd64)
+        - arm64 only
+        - amd64 only
+        - not sure — check for me
+      default: 0
+    validations: { required: true }
+  - type: dropdown
+    id: collection
+    attributes:
+      label: Which collection?
+      options:
+        - essentials (the credibility floor — every cluster should run it)
+        - show-off (instant "whoa", no extra hardware)
+        - everyday (useful; its absence would read as a gap)
+        - dongle (needs a cheap SDR or similar)
+        - not sure
+    validations: { required: true }
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options: [ai, automation, data, games, media, monitoring, network, photos, productivity, radio, security, tools]
+    validations: { required: true }
+  - type: textarea
+    id: why
+    attributes:
+      label: Would you screenshot this and show someone?
+      description: >
+        The question the catalog is actually curated on. Say what a new owner sees in
+        the first fifteen minutes — not the feature list, the moment it earns its place.
+    validations: { required: true }
+  - type: input
+    id: hardware
+    attributes:
+      label: Hardware it needs (optional)
+      description: Leave blank for pure software. Anything here means the tile carries a badge.
+      placeholder: rtl-sdr
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: It runs without an account, license key, or paid feed to be useful
+          required: false
+        - label: It is safe on a LAN by default (does not expect to be internet-exposed)
+          required: false

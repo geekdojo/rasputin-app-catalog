@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Rasputin documentation
+    url: https://rasputin.geekdojo.com/docs/
+    about: Docs for the appliance itself — this repo is only the app catalog.
+  - name: Report a problem with an app already in the catalog
+    url: https://github.com/geekdojo/rasputin-app-catalog/issues/new
+    about: A tile that is broken, out of date, or has relicensed. Not a new-app request.

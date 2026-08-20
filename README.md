@@ -88,6 +88,6 @@ Until the publish pipeline exists, `rasputin-control-plane` keeps its own copy o
 shipping catalog. **This repo is the authoring home; that copy is a temporary duplicate** and is
 removed once the control plane pins a published catalog release.
 
-## Licence
+## License
 
 AGPL-3.0, matching the rest of the Rasputin source.

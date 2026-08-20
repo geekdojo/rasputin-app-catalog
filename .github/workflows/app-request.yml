@@ -1,0 +1,72 @@
+name: app-request
+
+# Triage for the intake front door.
+#
+# EVERY BYTE THIS JOB READS IS ATTACKER-CONTROLLED. The issue body is written by
+# whoever opened it, on a public repo. Two mitigations are structural rather
+# than advisory:
+#
+#   1. The body reaches the checker through an ENVIRONMENT VARIABLE. It is never
+#      interpolated into a `run:` block. `run: echo "${{ github.event.issue.body }}"`
+#      is remote code execution — a body containing $(...) or a backtick executes
+#      on the runner — and it is the single most common way an intake workflow
+#      gets owned.
+#   2. `permissions:` is read-only by default and the ONE job that needs to
+#      comment is granted `issues: write` and nothing else. No contents:write,
+#      no packages, no id-token. A prompt-injection win here can post a comment;
+#      it cannot touch the catalog, and it cannot reach a signing key because
+#      none is exposed to this workflow.
+#
+# geekdojo/geekdojo-brain#166 is the wider containment work; this is the first
+# place it has to hold.
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions: {}
+
+jobs:
+  triage:
+    if: contains(github.event.issue.labels.*.name, 'app-request')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - name: validate the request
+        id: check
+        # ISSUE_BODY is passed as env, NOT interpolated into the script. This is
+        # the load-bearing line of the whole workflow.
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          set +e
+          go run ./cmd/triage > /tmp/triage.md 2>&1
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          cat /tmp/triage.md
+
+      - name: post the verdict
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/triage.md
+
+      - name: label by outcome
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          EXIT: ${{ steps.check.outputs.exit }}
+        run: |
+          if [ "$EXIT" = "0" ]; then
+            gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+              --add-label "triage-passed" --remove-label "needs-changes" || true
+          else
+            gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+              --add-label "needs-changes" --remove-label "triage-passed" || true
+          fi
