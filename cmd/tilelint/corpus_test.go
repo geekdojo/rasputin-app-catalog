@@ -24,8 +24,16 @@ func TestShippedCorpusIsClean(t *testing.T) {
 	}
 
 	for _, id := range ids {
-		for _, problem := range checkTile(root, id, false) {
+		problems, notices := checkTile(root, id, false)
+		for _, problem := range problems {
 			t.Errorf("%s: %s", id, problem)
+		}
+		// Notices are not failures. Logging them means a change in what the
+		// shipped corpus asks for shows up in the test output rather than
+		// only in CI's, so a tile that starts taking privilege is noticed
+		// here too (#195).
+		for _, n := range notices {
+			t.Logf("%s: privilege — %s", id, n)
 		}
 	}
 	t.Logf("%d tiles validated", len(ids))
