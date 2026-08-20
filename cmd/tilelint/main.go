@@ -27,11 +27,12 @@ import (
 
 func main() {
 	var (
-		root     = flag.String("root", "tiles", "tile corpus directory")
-		probe    = flag.Bool("arch", false, "probe registries to verify architecture claims (network)")
-		only     = flag.String("tile", "", "validate a single tile by id")
-		failures int
-		checked  int
+		root       = flag.String("root", "tiles", "tile corpus directory")
+		probe      = flag.Bool("arch", false, "probe registries to verify architecture claims (network)")
+		only       = flag.String("tile", "", "validate a single tile by id")
+		failures   int
+		checked    int
+		privileged int
 	)
 	flag.Parse()
 
@@ -46,9 +47,17 @@ func main() {
 			continue
 		}
 		checked++
-		for _, problem := range checkTile(*root, id, *probe) {
+		problems, notices := checkTile(*root, id, *probe)
+		for _, problem := range problems {
 			fmt.Printf("  x %-22s %s\n", id, problem)
 			failures++
+		}
+		// Notices never fail the run. They exist because a privilege a tile
+		// takes is worth a human seeing even when policy permits it — and
+		// because the submission pipeline opens PRs a reviewer skims (#195).
+		for _, n := range notices {
+			fmt.Printf("  ! %-22s %s\n", id, n)
+			privileged++
 		}
 	}
 
@@ -56,7 +65,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "tilelint: no tile with id %q\n", *only)
 		os.Exit(2)
 	}
-	fmt.Printf("\n%d tile(s) checked, %d problem(s)\n", checked, failures)
+	fmt.Printf("\n%d tile(s) checked, %d problem(s), %d privilege notice(s)\n", checked, failures, privileged)
 	if failures > 0 {
 		os.Exit(1)
 	}
@@ -64,18 +73,18 @@ func main() {
 
 // checkTile returns every problem with one tile rather than the first, so a
 // contributor sees the whole list in one run instead of peeling them off across
-// six pushes.
-func checkTile(root, id string, probe bool) []string {
-	var problems []string
+// six pushes. Notices are the second return: things a reviewer should SEE that
+// are not, today, things the validator refuses.
+func checkTile(root, id string, probe bool) (problems, notices []string) {
 	dir := filepath.Join(root, id)
 
 	raw, err := os.ReadFile(filepath.Join(dir, "tile.json"))
 	if err != nil {
-		return []string{fmt.Sprintf("read tile.json: %v", err)}
+		return []string{fmt.Sprintf("read tile.json: %v", err)}, nil
 	}
 	var tile tileschema.Tile
 	if err := json.Unmarshal(raw, &tile); err != nil {
-		return []string{fmt.Sprintf("parse tile.json: %v", err)}
+		return []string{fmt.Sprintf("parse tile.json: %v", err)}, nil
 	}
 	if tile.ID != id {
 		problems = append(problems, fmt.Sprintf("id %q does not match its directory name", tile.ID))
@@ -95,11 +104,11 @@ func checkTile(root, id string, probe bool) []string {
 	// A preview tile with a compose file would otherwise carry an unchecked
 	// stack behind the preview flag until the day someone flips it.
 	if composeErr != nil {
-		return problems
+		return problems, nil
 	}
 	facts, err := compose.Extract(composeYAML)
 	if err != nil {
-		return append(problems, err.Error())
+		return append(problems, err.Error()), nil
 	}
 	if err := tileschema.ValidateTileSafety(tile, facts); err != nil {
 		problems = append(problems, err.Error())
@@ -108,7 +117,44 @@ func checkTile(root, id string, probe bool) []string {
 	if probe {
 		problems = append(problems, archProblems(tile, facts)...)
 	}
-	return problems
+	return problems, privilegeNotices(facts)
+}
+
+// privilegeNotices renders the privilege a stack takes, so it is visible on a
+// pull request even where the validator permits it.
+//
+// #195 captured these facts; it deliberately did not rule on them — #196 owns
+// what a tile may declare and what an operator consents to. Between the two, a
+// captured fact nobody prints is no better than one nobody collected, and the
+// agentic submission pipeline opens PRs that a human skims.
+func privilegeNotices(f tileschema.SafetyFacts) []string {
+	var out []string
+	add := func(label string, vals []string) {
+		if len(vals) > 0 {
+			out = append(out, label+": "+strings.Join(vals, " "))
+		}
+	}
+	if f.Privileged {
+		out = append(out, "privileged: true")
+	}
+	if f.HostNetwork {
+		out = append(out, "host networking")
+	}
+	if f.HostPIDOrIPC {
+		out = append(out, "host PID or IPC namespace")
+	}
+	add("capabilities", f.CapAdd)
+	add("security_opt", f.SecurityOpt)
+	add("userns_mode", f.UsernsMode)
+	add("group_add", f.GroupAdd)
+	add("sysctls", f.Sysctls)
+	add("volumes_from", f.VolumesFrom)
+	add("reserved devices", f.ReservedDevices)
+	add("namespace joins", f.NamespaceJoins)
+	add("cgroup_parent", f.CgroupParent)
+	add("devices", f.Devices)
+	sort.Strings(out)
+	return out
 }
 
 // archProblems verifies the tile's arch claim against what the registry
