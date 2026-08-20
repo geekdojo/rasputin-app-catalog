@@ -12,15 +12,14 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/geekdojo/rasputin-app-catalog/internal/compose"
+	"github.com/geekdojo/rasputin-app-catalog/internal/corpus"
 	"github.com/geekdojo/rasputin-app-catalog/internal/registry"
 	"github.com/geekdojo/rasputin-control-plane/tileschema"
 )
@@ -36,7 +35,7 @@ func main() {
 	)
 	flag.Parse()
 
-	ids, err := tileIDs(*root)
+	ids, err := corpus.IDs(*root)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "tilelint:", err)
 		os.Exit(2)
@@ -76,25 +75,14 @@ func main() {
 // six pushes. Notices are the second return: things a reviewer should SEE that
 // are not, today, things the validator refuses.
 func checkTile(root, id string, probe bool) (problems, notices []string) {
-	dir := filepath.Join(root, id)
-
-	raw, err := os.ReadFile(filepath.Join(dir, "tile.json"))
+	// One loader, shared with the bundle builder (internal/corpus). Two would
+	// drift, and the drift would be silent — the linter passing a corpus the
+	// builder then published differently.
+	l, err := corpus.Load(root, id)
 	if err != nil {
-		return []string{fmt.Sprintf("read tile.json: %v", err)}, nil
+		return []string{err.Error()}, nil
 	}
-	var tile tileschema.Tile
-	if err := json.Unmarshal(raw, &tile); err != nil {
-		return []string{fmt.Sprintf("parse tile.json: %v", err)}, nil
-	}
-	if tile.ID != id {
-		problems = append(problems, fmt.Sprintf("id %q does not match its directory name", tile.ID))
-	}
-
-	composePath := filepath.Join(dir, "docker-compose.yml")
-	composeYAML, composeErr := os.ReadFile(composePath)
-	if composeErr == nil {
-		tile.ComposeYAML = string(composeYAML)
-	}
+	tile := l.Tile
 
 	if err := tileschema.ValidateTile(tile); err != nil {
 		problems = append(problems, err.Error())
@@ -103,10 +91,10 @@ func checkTile(root, id string, probe bool) (problems, notices []string) {
 	// Safety runs whenever a stack EXISTS, not only when the tile is available.
 	// A preview tile with a compose file would otherwise carry an unchecked
 	// stack behind the preview flag until the day someone flips it.
-	if composeErr != nil {
+	if !l.HasCompose {
 		return problems, nil
 	}
-	facts, err := compose.Extract(composeYAML)
+	facts, err := compose.Extract([]byte(l.Compose))
 	if err != nil {
 		return append(problems, err.Error()), nil
 	}
@@ -191,22 +179,4 @@ func archProblems(tile tileschema.Tile, facts tileschema.SafetyFacts) []string {
 		}
 	}
 	return problems
-}
-
-func tileIDs(root string) ([]string, error) {
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		return nil, err
-	}
-	var ids []string
-	for _, e := range entries {
-		if e.IsDir() {
-			ids = append(ids, e.Name())
-		}
-	}
-	if len(ids) == 0 {
-		return nil, fmt.Errorf("no tiles found under %s", root)
-	}
-	sort.Strings(ids)
-	return ids, nil
 }

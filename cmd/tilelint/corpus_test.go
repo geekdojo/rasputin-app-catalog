@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/geekdojo/rasputin-app-catalog/internal/corpus"
 	"path/filepath"
 	"testing"
 )
@@ -15,7 +16,7 @@ import (
 // The architecture claims are verified by the scheduled workflow instead.
 func TestShippedCorpusIsClean(t *testing.T) {
 	root := filepath.Join("..", "..", "tiles")
-	ids, err := tileIDs(root)
+	ids, err := corpus.IDs(root)
 	if err != nil {
 		t.Fatalf("read corpus: %v", err)
 	}
