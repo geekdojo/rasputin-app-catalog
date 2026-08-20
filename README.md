@@ -76,6 +76,36 @@ PRs — it talks to Docker Hub and ghcr, and a contributor cannot fix a registry
 so `jellyfin/jellyfin:10.9.11` does not describe a fixed stack. Keep the tag for readability
 and add the digest — `jellyfin/jellyfin:10.9.11@sha256:…` — which is the form the linter wants.
 
+## Requesting an app
+
+Open an issue with the **Request an app** template. A bot checks it is complete, that the
+id is usable as a hostname, that the tag is pinned rather than floating, and that the
+registry really publishes the architectures the request claims — asking the registry
+rather than believing the tag.
+
+Passing that is not acceptance. It means the request is worth a human reading. The catalog
+is curated rather than comprehensive, so a complete, technically sound request can still be
+declined because it does not fit the set.
+
+A single-architecture app is fine. Rasputin runs arm64 (Pi 5) and amd64 (N100) nodes; a
+tile declares what it supports and install offers only the nodes that can run it.
+
+## How a request becomes a tile
+
+```
+issue  ──▶  triage bot  ──▶  agent drafts a PR  ──▶  gates  ──▶  human merges  ──▶  bench
+            complete?        digest-pinned tile      tiles         curation        preview
+            arch real?       + its evidence          supply-chain   judgement      → available
+```
+
+The agent stage is **manually dispatched**, not automatic: a human names the issue number,
+which means a human has read it. Nothing starts an agent because a stranger opened an issue.
+
+Every stage after the agent is deterministic code the agent cannot edit. It proposes a tile
+and the evidence behind it; the gates decide whether that proposal is safe, and a person
+decides whether it belongs. The last step is hardware — a tile ships as `preview` until it
+clears the bench, and no part of this pipeline can grant `available`.
+
 ## Not here yet
 
 This repo is being stood up incrementally. Still to land:
