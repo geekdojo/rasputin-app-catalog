@@ -175,13 +175,33 @@ jobs:
           version="$(tr -d '[:space:]' < VERSION)"
           flag=""
           [ "$CHANNEL" = "stable" ] || flag="--prerelease"
+
+          # Notes go through a file, not an inline --notes string. A multi-line
+          # argument written inline has to stay indented INSIDE this block
+          # scalar; a line at column 0 silently ends the block and YAML then
+          # tries to parse the prose as workflow keys. That is not theoretical
+          # — it is how the first version of this file failed to load at all.
+          # A quoted heredoc keeps the body literal and correctly indented.
+          cat > /tmp/notes.md <<'NOTES'
+          Signed catalog bundle.
+
+          Verify it against the Rasputin root CA before trusting it:
+
+              openssl cms -verify -binary -inform DER \
+                -in catalog.json.sig -content catalog.json \
+                -CAfile rasputin-root-ca.pem -purpose any
+
+          `-purpose any` is required: the catalog leaf carries the catalog EKU and
+          deliberately not generic codeSigning, so openssl's default purpose check
+          rejects it on that basis alone.
+
+          Root CA: https://rasputin.geekdojo.com/rasputin-root-ca.pem
+          NOTES
+          # Strip the leading indentation the block scalar required.
+          sed -i 's/^          //' /tmp/notes.md
+
           # shellcheck disable=SC2086
           gh release create "catalog-v${version}" $flag \
             --title "Rasputin App Catalog v${version}" \
-            --notes "Signed catalog bundle. Verify with the Rasputin root CA:
-
-    openssl cms -verify -binary -inform DER -in catalog.json.sig \\
-      -content catalog.json -CAfile rasputin-root-ca.pem -purpose any
-
-Root CA: https://rasputin.geekdojo.com/rasputin-root-ca.pem" \
+            --notes-file /tmp/notes.md \
             catalog.json catalog.json.sig
