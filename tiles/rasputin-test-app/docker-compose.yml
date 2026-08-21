@@ -1,0 +1,19 @@
+# A deliberately boring stack, and every boring property is the point: this tile
+# exists to test the machinery around a tile, so it must not fail for reasons of
+# its own. No volumes (nothing to persist or corrupt), no environment (nothing to
+# seed), no secrets, no capabilities, no bind mounts, no database. If installing
+# this fails, the fault is in the cluster and not in the app.
+#
+# traefik/whoami answers any request with the container's view of itself —
+# hostname, headers, client address — which makes it a readable end-to-end probe
+# of install, DNS, the reverse proxy and TLS in one page.
+#
+# The DIGEST is the pin; the tag is human-readable sugar (ADR-0006 Decision 8).
+# v1.12.0 publishes linux/amd64, linux/arm64 and linux/arm/v7 under this index,
+# so `arch: both` is a checked claim rather than an assumption.
+services:
+  rasputin-test-app:
+    image: traefik/whoami:v1.12.0@sha256:c4717a8d1f0134a7444e24f881160e033991f23027c6c5a9a3f8fd22e70d1d44
+    restart: unless-stopped
+    ports:
+      - "8088:80"
