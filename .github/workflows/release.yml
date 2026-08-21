@@ -8,11 +8,15 @@ name: catalog-release
 # `build` runs on every push to main and every PR. It proves the bundle path
 # continuously and needs no secrets.
 #
-# `publish` is workflow_dispatch ONLY for now, because the catalog signing leaf
-# does not exist yet: it needs an EKU under a real IANA PEN, and the request
-# (PHQ7-ICU-LU2) is outstanding. Wiring publish to `push` today would turn main
-# red on every merge for a credential nobody can mint. Flip it to push once the
-# leaf lands — tracked on geekdojo/geekdojo-brain#192.
+# `publish` runs on push to main and on manual dispatch. It was dispatch-only
+# until 2026-08-21, while the catalog signing leaf did not exist — it needed an
+# EKU under a real IANA PEN. PEN 66587 was assigned 2026-08-20 and
+# catalog-leaf-001 is now in this repo's secrets, so a merge to main publishes.
+#
+# Every merge to main publishes a new catalog version. That is the point of the
+# whole epic — apps arrive without a firmware upgrade — and it is safe because
+# the `version` job in lint.yml refuses a corpus change that does not bump
+# VERSION, and this job refuses a version at or below the highest released.
 on:
   push:
     branches: [main]
@@ -74,7 +78,9 @@ jobs:
           if-no-files-found: error
 
   publish:
-    if: github.event_name == 'workflow_dispatch'
+    # Only from main. A PR must never publish: its head is untrusted content by
+    # definition, and this job holds the signing key.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -169,7 +175,9 @@ jobs:
       - name: Publish the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CHANNEL: ${{ inputs.channel }}
+          # inputs.channel is empty on a push event, so default it. A push
+          # publishes to dev; promoting to stable is a deliberate dispatch.
+          CHANNEL: ${{ inputs.channel || 'dev' }}
         run: |
           set -eu
           version="$(tr -d '[:space:]' < VERSION)"

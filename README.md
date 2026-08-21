@@ -150,10 +150,11 @@ This repo is being stood up incrementally. Still to land:
 - the control plane fetching and verifying the published bundle,
 - the hardware bench stage that flips `preview` → `available`.
 
-The signed bundle and its publish pipeline are built; publishing is a manual
-`workflow_dispatch` until the catalog signing leaf exists, which is waiting on an IANA PEN
-registration. The app-request intake template and the agent-assisted drafting pipeline have
-landed — see **Requesting an app** above.
+The signed bundle and its publish pipeline are live: **every merge to `main` publishes a new
+signed catalog release.** Bundles are signed with a dedicated app-catalog leaf under Geekdojo's
+IANA PEN 66587, carrying a catalog-only EKU — that leaf cannot sign an OS or firmware artifact
+even though it shares the trust root. The app-request intake template and the agent-assisted
+drafting pipeline have landed too — see **Requesting an app** above.
 
 Until the publish pipeline exists, `rasputin-control-plane` keeps its own copy of `tiles/` as the
 shipping catalog. **This repo is the authoring home; that copy is a temporary duplicate** and is
