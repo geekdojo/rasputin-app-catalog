@@ -41,6 +41,43 @@ Desk research does not qualify.
 
 Today: **23 tiles — 5 available, 18 preview.**
 
+## Catalog version
+
+The repo root holds a `VERSION` file containing a single positive integer:
+
+```
+1
+```
+
+That number is the **catalog version**, and it goes inside the signed bundle. A cluster refuses any
+bundle whose version does not exceed the one it already holds ([ADR-0006 Decision 5]). This closes
+an attack that needs no forged signature: replay a genuinely-signed *older* bundle and the fleet
+rolls back to image digests with known CVEs. A signature check cannot tell that from a real update,
+so the version gate has to.
+
+**If your pull request changes anything under `tiles/`, raise `VERSION` by one.** CI enforces it —
+the `version` job compares your branch against the base and fails if the corpus moved and the number
+did not. A pull request that touches only docs or workflows needs no bump, and the job skips itself.
+
+Two consequences worth knowing before they surprise you:
+
+- **Forward only.** A bad publish is fixed by publishing a *higher* version, never by re-releasing a
+  previous one. There is no rollback.
+- **Two open pull requests can pick the same number.** Whichever merges second still says the same
+  value, and the publish job refuses to reuse a version that is already released. Bump again and
+  push; nothing is broken, but the second author is the one who has to do it.
+
+Building the bundle by hand, if you want to see what gets published:
+
+```bash
+go run ./cmd/catalogbundle -version 1 -o catalog.json
+```
+
+`-version` is required and has no default — there is no safe guess for a monotonic counter.
+Add `-o -` to write to your terminal instead of a file.
+
+[ADR-0006 Decision 5]: https://github.com/geekdojo/geekdojo-brain/blob/main/projects/rasputin/adr/0006-app-catalog-delivery.md
+
 ## Validation
 
 The tile contract lives in one place, the `tileschema` Go module in `rasputin-control-plane`, and
@@ -110,9 +147,13 @@ clears the bench, and no part of this pipeline can grant `available`.
 
 This repo is being stood up incrementally. Still to land:
 
-- the signed, versioned bundle and its publish pipeline,
-- the app-request intake template and the agent-assisted drafting pipeline,
+- the control plane fetching and verifying the published bundle,
 - the hardware bench stage that flips `preview` → `available`.
+
+The signed bundle and its publish pipeline are built; publishing is a manual
+`workflow_dispatch` until the catalog signing leaf exists, which is waiting on an IANA PEN
+registration. The app-request intake template and the agent-assisted drafting pipeline have
+landed — see **Requesting an app** above.
 
 Until the publish pipeline exists, `rasputin-control-plane` keeps its own copy of `tiles/` as the
 shipping catalog. **This repo is the authoring home; that copy is a temporary duplicate** and is
