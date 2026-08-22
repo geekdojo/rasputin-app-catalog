@@ -123,6 +123,7 @@ jobs:
         # reasoning as the supply-chain job above.
         env:
           BASE_REF: ${{ github.base_ref }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eu
           base="origin/$BASE_REF"
@@ -136,7 +137,30 @@ jobs:
           want="$(git show "$base:VERSION" 2>/dev/null | tr -d '[:space:]' || true)"
           [ -n "$want" ] || want=0
           case "$have" in ''|*[!0-9]*) echo "::error::VERSION must be a positive integer, got '$have'"; exit 1;; esac
-          echo "tiles/ changed. VERSION on $BASE_REF is $want; on this branch it is $have."
+
+          # Compare against the highest PUBLISHED catalog too, not just the base
+          # branch's VERSION. The two can diverge — a release published outside
+          # the normal merge flow (the #162 and #192 hardware fixtures, 2026-08-22)
+          # leaves the file behind the tags. Checking only the base ref then
+          # green-lights a version the publish job will reject after merge, which
+          # is a red main branch and a confusing one: the PR that caused it passed.
+          #
+          # The publish job enforces the same rule and is the real gate — this is
+          # the early, cheap copy of it, so the failure lands on the PR that can
+          # still fix it. Best-effort: an API hiccup must not fail a contributor's
+          # PR for a reason they cannot act on, so a lookup failure skips this
+          # half and leaves the base-ref check standing.
+          published="$(gh release list --limit 100 --json tagName \
+            --jq '[.[].tagName|select(startswith("catalog-v"))|ltrimstr("catalog-v")|tonumber]|max // 0' \
+            2>/dev/null || echo "")"
+          if [ -n "$published" ]; then
+            echo "highest published catalog is v$published."
+            if [ "$published" -gt "$want" ]; then want="$published"; fi
+          else
+            echo "note: could not read published releases; comparing against the base ref only."
+          fi
+
+          echo "tiles/ changed. Must exceed v$want; this branch is v$have."
           if [ "$have" -le "$want" ]; then
             echo "::error::This PR changes tiles/ but does not raise VERSION above $want."
             echo "::error::Every corpus change is a new catalog, and a cluster refuses a bundle whose version does not exceed the one it holds — so an unbumped corpus publishes an artifact the whole fleet ignores."
