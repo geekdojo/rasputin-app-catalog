@@ -8,6 +8,15 @@
   "arch": "both",
   "ramFloorMB": 256,
   "exposureDefault": "lan-only",
+  "ports": [
+    {
+      "name": "web",
+      "container": 80,
+      "published": 8083,
+      "protocol": "tcp",
+      "primary": true
+    }
+  ],
   "status": "preview",
   "website": "https://github.com/dani-garcia/vaultwarden",
   "icon": "\ud83d\udd12",

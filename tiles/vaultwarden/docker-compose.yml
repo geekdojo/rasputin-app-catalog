@@ -1,0 +1,18 @@
+# The DIGEST is the pin — a tag stays mutable at the registry however specific it
+# looks, so the tag here is human-readable sugar (ADR-0006 Decision 8). Version is
+# provisional until the tile clears the hardware bench.
+services:
+  vaultwarden:
+    image: vaultwarden/server:1.37.2@sha256:094b5689ed81549bd293418395c7cf495ae9d960fc2d4928cef2083ef913d912
+    restart: unless-stopped
+    environment:
+      # Signups stay open only until the owner creates their account; close it
+      # from the admin page after first login.
+      SIGNUPS_ALLOWED: "true"
+    volumes:
+      - vaultwarden-data:/data
+    ports:
+      - "8083:80"
+
+volumes:
+  vaultwarden-data:

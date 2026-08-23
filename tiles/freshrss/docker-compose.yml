@@ -1,0 +1,19 @@
+# The DIGEST is the pin — a tag stays mutable at the registry however specific it
+# looks, so the tag here is human-readable sugar (ADR-0006 Decision 8). Version is
+# provisional until the tile clears the hardware bench.
+services:
+  freshrss:
+    image: freshrss/freshrss:1.29.1@sha256:ab6b363102ccdbc39f6a62db926f567c61a5289bf25ba460f1c34423d8cc1a4d
+    restart: unless-stopped
+    environment:
+      TZ: UTC
+      CRON_MIN: "13,43"
+    volumes:
+      - freshrss-data:/var/www/FreshRSS/data
+      - freshrss-extensions:/var/www/FreshRSS/extensions
+    ports:
+      - "8082:80"
+
+volumes:
+  freshrss-data:
+  freshrss-extensions:
