@@ -13,10 +13,14 @@ name: catalog-release
 # EKU under a real IANA PEN. PEN 66587 was assigned 2026-08-20 and
 # catalog-leaf-001 is now in this repo's secrets, so a merge to main publishes.
 #
-# Every merge to main publishes a new catalog version. That is the point of the
-# whole epic — apps arrive without a firmware upgrade — and it is safe because
-# the `version` job in lint.yml refuses a corpus change that does not bump
-# VERSION, and this job refuses a version at or below the highest released.
+# Every merge to main that CHANGES THE CORPUS publishes a new catalog version.
+# That is the point of the whole epic — apps arrive without a firmware upgrade —
+# and it is safe because the `version` job in lint.yml refuses a corpus change
+# that does not bump VERSION, and this job refuses to republish or go backwards.
+#
+# A merge that changes no tiles has nothing to publish and says so, rather than
+# failing: docs and workflow commits are the common case on this repo, and a
+# publish job that is routinely red for them is a publish job nobody reads.
 on:
   push:
     branches: [main]
@@ -89,13 +93,20 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+          # Needed to diff this push against its predecessor in the gate below.
+          fetch-depth: 0
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
 
-      - name: Refuse to republish or go backwards
+      - name: Is there anything to publish?
+        id: gate
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Bound through env, never interpolated into the script body — same
+          # template-injection reasoning as the build job above.
+          BEFORE: ${{ github.event.before }}
+          EVENT: ${{ github.event_name }}
         run: |
           set -eu
           version="$(tr -d '[:space:]' < VERSION)"
@@ -106,13 +117,48 @@ jobs:
           # will refuse — a broken release that looks successful here.
           latest="$(gh release list --limit 100 --json tagName --jq '[.[].tagName|select(startswith("catalog-v"))|ltrimstr("catalog-v")|tonumber]|max // 0')"
           echo "VERSION=$version, highest published=$latest"
-          if [ "$version" -le "$latest" ]; then
-            echo "::error::VERSION ($version) must exceed the highest published catalog ($latest). Bump VERSION in a PR."
+
+          if [ "$version" -gt "$latest" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # version <= latest means there is nothing NEW to publish, because the
+          # version IS the identity of a publish. Whether that is fine or a bug
+          # depends entirely on what the commit touched:
+          #
+          #   corpus unchanged  a README or workflow edit. Normal, and the
+          #                     common case — every docs merge lands here. This
+          #                     used to fail the job, so main carried a red
+          #                     publish for changes that had nothing to publish,
+          #                     which is how a release job stops being read.
+          #   corpus  changed   a real defect: tiles moved without a bump. The
+          #                     `version` job in lint.yml catches this on a PR,
+          #                     but a direct push to main never saw that gate.
+          #
+          # Mirrors lint.yml's own "only fires when tiles/ actually changed".
+          if [ "$EVENT" != "push" ] || [ -z "${BEFORE:-}" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "::error::VERSION ($version) is at or below the highest published catalog ($latest), and this run has no predecessor commit to prove the corpus is unchanged. Bump VERSION in a PR."
             exit 1
           fi
+          # A force-push (or a GC'd predecessor) leaves BEFORE pointing at an
+          # object this clone does not have. Say that, rather than dying on a
+          # bare "bad object" and making a resolvable situation look like a bug.
+          if ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            echo "::error::VERSION ($version) is at or below the highest published catalog ($latest), and the predecessor commit ($BEFORE) is not in this clone, so the corpus cannot be proven unchanged. Bump VERSION in a PR."
+            exit 1
+          fi
+          if git diff --quiet "$BEFORE" "$GITHUB_SHA" -- tiles/ VERSION; then
+            echo "::notice::Nothing to publish: the corpus is unchanged and catalog v$latest is already released."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::error::tiles/ changed but VERSION ($version) is not above the highest published catalog ($latest). A corpus change must bump VERSION."
+          exit 1
 
       - name: Stage signing material
         id: stage
+        if: steps.gate.outputs.publish == 'true'
         env:
           LEAF_KEY:  ${{ secrets.RASPUTIN_CATALOG_LEAF_KEY }}
           LEAF_CERT: ${{ secrets.RASPUTIN_CATALOG_LEAF_CERT }}
@@ -141,6 +187,7 @@ jobs:
             || { echo "::error::catalog leaf does not chain to the Rasputin root"; exit 1; }
 
       - name: Build and sign
+        if: steps.gate.outputs.publish == 'true'
         env:
           SOURCE: ${{ github.repository }}@${{ github.sha }}
         run: |
@@ -173,6 +220,7 @@ jobs:
         run: sudo umount /mnt/rasputin-sign 2>/dev/null || true
 
       - name: Publish the release
+        if: steps.gate.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # inputs.channel is empty on a push event, so default it. A push
