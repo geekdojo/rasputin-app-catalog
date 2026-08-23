@@ -72,6 +72,31 @@ func report(id, img string, prov scan.Provenance, vulns []scan.Vuln, provDir str
 	failures := 0
 	path := filepath.Join(provDir, id+".json")
 
+	// AppFixableCeiling and AcceptedReason live ONLY in the checked-in file —
+	// they record a human decision and scan.Scan never produces them. Carry
+	// them onto the scanned struct before it is written or compared, because
+	// the asymmetry breaks BOTH paths:
+	//
+	//   -write   marshals the scanned struct straight over the file, silently
+	//            deleting an accepted exception and the revisit trigger with
+	//            it — and the tool's own output tells reviewers to run -write
+	//            before merging, so the deletion looks routine in the diff.
+	//   verify   DeepEqual-compares a file that HAS the fields against a scan
+	//            that never does, so any tile carrying an exception reports
+	//            permanent "provenance drift" while printing source-available
+	//            and copyleft lines that are identical — an alarm with nothing
+	//            to act on, which is how a gate stops being read.
+	//
+	// Preserving them here keeps the exception a reviewed diff, which is the
+	// whole point of storing it in the file rather than in a baseline.
+	if old, err := os.ReadFile(path); err == nil {
+		var prev scan.Provenance
+		if json.Unmarshal(old, &prev) == nil {
+			prov.AppFixableCeiling = prev.AppFixableCeiling
+			prov.AcceptedReason = prev.AcceptedReason
+		}
+	}
+
 	if write {
 		blob, _ := json.MarshalIndent(prov, "", "  ")
 		if err := os.WriteFile(path, append(blob, '\n'), 0o644); err != nil {
