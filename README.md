@@ -38,11 +38,10 @@ somebody has already installed.** Treat ids as frozen once published.
 A tile flips `preview` → `available` only after it clears the hardware bench: installed and
 exercised on real Pi 5 and N100 nodes by a person. Desk research does not qualify.
 
-`ramFloorMB` is upstream's documented minimum, cited — **not a measured figure**. We deliberately
-do not benchmark tiles: load is per-app in a way that does not generalise (a transcode, an OCR
-pass and a DNS flood are not the same test), and a number produced by a benchmark that did not
-exercise the app would look measured while meaning nothing. Treat the badge as the vendor's floor,
-not as our ceiling.
+**`ramFloorMB` today is upstream's documented minimum, cited — not a measured figure.** That is
+true of every tile in the corpus, including the `available` ones: the bench converts desk figures
+into measured ones and has not yet run for them. Read the badge as the vendor's floor, and not as
+a number we have observed.
 
 Today: **23 tiles — 5 available, 18 preview.**
 
@@ -185,9 +184,9 @@ clears the bench, and no part of this pipeline can grant `available`.
 
 This repo is being stood up incrementally. Still to land:
 
-- an automated bench stage. Flipping `preview` → `available` is a person's job today and is
-  staying that way for now; the one piece worth automating later is proving a published arm64
-  image really executes on a Pi, which is deferred rather than dropped.
+- the hardware bench itself, for 18 of the 23 tiles. It is a person's job and stays that way —
+  the E19 pipeline will not be automating it. Proving a published arm64 image really executes on
+  a Pi is the one piece worth automating later; that is deferred, not dropped.
 
 The signed bundle and its publish pipeline are live: **every merge to `main` publishes a new
 signed catalog release.** Bundles are signed with a dedicated app-catalog leaf under Geekdojo's
