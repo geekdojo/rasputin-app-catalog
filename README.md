@@ -90,9 +90,42 @@ Two halves:
 
 - **`ValidateTile`** — authored metadata. Everything expressible in `tile.json`.
 - **`ValidateTileSafety`** — the security-relevant properties of the compose stack: images must be
-  digest-pinned (a tag is mutable at the registry, however specific it looks), no privileged
-  containers, no host networking, no host PID/IPC, no added capabilities, bind mounts confined to
-  allowed roots, and host devices only when the tile declares `needsHardware`.
+  digest-pinned (a tag is mutable at the registry, however specific it looks), host devices only
+  when the tile declares `needsHardware`, and — since ADR-0006 Decision 12 — every other privilege
+  **declared rather than refused**.
+
+### Privilege: declared and consented, not refused
+
+The catalog used to refuse `privileged`, host networking, host PID/IPC, any `cap_add` and any bind
+mount outside two roots. That blocked apps people actually want (Home Assistant needs three of the
+five) while saying nothing about `security_opt: seccomp=unconfined`, which is the closest a stack
+gets to privileged without spelling it that way.
+
+The rule now is **no *undeclared* privilege**. A tile states what its stack takes; the validator
+derives the same thing from the compose and refuses the tile when the compose takes **more**.
+Under-declaration is the error — over-declaring is allowed, so a tile can be conservative.
+
+```json
+"requires": ["privilege-tiers-v1"],
+"privilege": {
+  "tier": "host-trusting",
+  "grants": ["privileged", "host-network", "device:/dev/ttyUSB0"],
+  "why": "controls the smart devices on your network, and talks to USB radios"
+}
+```
+
+Three tiers — `routine` (nothing outside its own container), `elevated` (reaches past itself but is
+not root-equivalent) and `host-trusting` (effectively root on the node). The container runtime
+socket is flagged separately from the tier, because it is not merely root-equivalent: it is the
+ability to escape any constraint added later.
+
+**Do not hand-write the grants.** `tilelint` derives them and prints the exact block to paste.
+
+**One thing stays an absolute refusal**, and no tier permits it: a path reaching the platform's own
+trust chain — `/etc/rasputin`, `/var/lib/rasputin` and anything containing them, `/var/lib/rasputin/apps/`
+excepted. Not because it is the riskiest thing, but because consent is only meaningful while the
+thing asking for it is still trustworthy; an app that can rewrite the trust store authorises every
+future update.
 
 Those safety facts are **derived here at publish time** and carried in the signed bundle manifest.
 The control plane never parses compose — it validates the derived facts, which the bundle

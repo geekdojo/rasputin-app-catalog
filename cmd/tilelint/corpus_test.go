@@ -25,7 +25,13 @@ func TestShippedCorpusIsClean(t *testing.T) {
 	}
 
 	for _, id := range ids {
-		problems, notices := checkTile(root, id, false)
+		problems, notices, unverified := checkTile(root, id, false)
+		if unverified {
+			// A preview tile with no compose. Not a failure and not routine —
+			// nothing has been computed, and #199 exists so that reads as the
+			// gap it is rather than as a clean bill of health.
+			t.Logf("%s: privilege unverified (no compose yet)", id)
+		}
 		for _, problem := range problems {
 			t.Errorf("%s: %s", id, problem)
 		}

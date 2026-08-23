@@ -24,9 +24,15 @@ Exactly two files, in `tiles/<id>/`:
 
 **`docker-compose.yml`** — the smallest stack that runs the app.
 - Image **digest-pinned**: `repo:tag@sha256:...`. Keep the readable tag AND the digest.
-- Named volumes only. A bind mount outside `/var/lib/rasputin/apps/` is refused.
-- No `privileged`, no `network_mode: host`, no `pid: host`, no `cap_add`.
-- No host devices unless the request declares hardware.
+- Named volumes only where you can. A bind mount is not refused any more — it is
+  **declared** (see `privilege` below) — but a stack that does not need one should
+  not take one.
+- `privileged`, `network_mode: host`, `pid: host`, `cap_add` and host devices are all
+  **permitted and must be declared**. Take the smallest set upstream actually needs.
+- One thing is still refused outright and no declaration permits it: any path that
+  reaches the platform's own trust chain — `/etc/rasputin`, `/var/lib/rasputin` and
+  anything containing them, including `/`, `/etc` and `/var/lib`. Only
+  `/var/lib/rasputin/apps/` is carved out.
 - `restart: unless-stopped`.
 - Sane defaults baked in, so a fresh install works without editing.
 
@@ -38,6 +44,14 @@ Exactly two files, in `tiles/<id>/`:
 - `status`: **always `preview`**. A tile becomes `available` only after the hardware
   bench, which is not yours to grant.
 - `exposureDefault`: `lan-only` unless there is a specific reason otherwise.
+- `privilege`: what the stack takes, and **omit it entirely if the stack takes nothing**.
+  Do not hand-write the grant strings — run `go run ./cmd/tilelint -tile <id>` and paste
+  the block it prints, then replace the `why` placeholder with one plain sentence an
+  owner will read before consenting. Write it for them, not for us: "controls the smart
+  devices on your network", not "requires NET_ADMIN for mDNS discovery".
+- `requires`: add `privilege-tiers-v1` whenever `privilege` is present. The linter's
+  snippet includes it. It is what makes an older control plane refuse the tile instead
+  of installing it with no consent prompt.
 
 ## Verify against primary sources, never marketing copy
 
