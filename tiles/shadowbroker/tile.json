@@ -28,7 +28,6 @@
       "primary": false
     }
   ],
-  "status": "preview",
   "website": "https://github.com/bigbodycobain/shadowbroker",
   "icon": "\ud83d\udef0\ufe0f",
   "postInstall": "Open it and add your OpenSky / AISStream keys in settings for full flight + ship coverage."

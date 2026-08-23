@@ -18,7 +18,6 @@
       "primary": true
     }
   ],
-  "status": "preview",
   "website": "https://github.com/open-webui/open-webui",
   "icon": "\ud83e\udd16",
   "postInstall": "Open it, create your account, then pull a small model (llama3.2:3b) \u2014 bigger models crawl on CPU."

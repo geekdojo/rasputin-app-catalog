@@ -18,7 +18,6 @@
       "primary": true
     }
   ],
-  "status": "preview",
   "website": "https://github.com/immich-app/immich",
   "icon": "\ud83d\udcf8",
   "postInstall": "Open it, create your admin account, install the mobile app, and turn on auto-backup. Runs its ML best on the x86 node."

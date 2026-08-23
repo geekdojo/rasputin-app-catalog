@@ -32,19 +32,28 @@ somebody has already installed.** Treat ids as frozen once published.
 
 | Status | Means |
 |---|---|
-| `available` | Benched on real Pi 5 + N100 hardware, pinned, installable. |
+| `available` | Pinned and installable. Intended to mean "benched on real Pi 5 + N100 hardware" — see the exception below. |
 | `preview` | Shown in the grid so the catalog reflects the roadmap; install is refused (409). May omit its compose entirely. |
 
 A tile flips `preview` → `available` only after it clears the hardware bench: installed and
 exercised on real Pi 5 and N100 nodes by a person. Desk research does not qualify.
+
+> **Exception, 2026-08-23 (Bryce).** Thirteen tiles were flipped to `available` in catalog v10
+> *ahead of* that bench — the whole set authored that day: actual-budget, arr-stack, freshrss,
+> home-assistant, immich, karakeep, mealie, minecraft, ollama-webui, paperless-ngx, romm,
+> shadowbroker and vaultwarden. Their composes lint, their images are digest-pinned and confirmed
+> multi-arch, and every stack parses — but **none of them has been started on any hardware**, and
+> a compose that lints is not a compose that boots. The bench is still owed for all thirteen. The
+> five originally-available tiles (audiobookshelf, jellyfin, navidrome, pi-hole, uptime-kuma) are
+> unaffected by this note.
 
 **`ramFloorMB` today is upstream's documented minimum, cited — not a measured figure.** That is
 true of every tile in the corpus, including the `available` ones: the bench converts desk figures
 into measured ones and has not yet run for them. Read the badge as the vendor's floor, and not as
 a number we have observed.
 
-Today: **18 tiles — 5 available, 13 preview.** Every tile ships a compose; the 14 are
-awaiting the hardware bench, not an author.
+Today: **18 tiles — 18 available, 0 preview.** Thirteen of the eighteen still owe the
+hardware bench; see the exception above.
 
 ## Catalog version
 
@@ -185,9 +194,10 @@ clears the bench, and no part of this pipeline can grant `available`.
 
 This repo is being stood up incrementally. Still to land:
 
-- the hardware bench itself, for 13 of the 18 tiles. It is a person's job and stays that way —
-  the E19 pipeline will not be automating it. Proving a published arm64 image really executes on
-  a Pi is the one piece worth automating later; that is deferred, not dropped.
+- the hardware bench itself, for 13 of the 18 tiles — which are already `available`, so this is
+  a debt against shipped tiles rather than a gate in front of them. It is a person's job and stays
+  that way; the E19 pipeline will not be automating it. Proving a published arm64 image really
+  executes on a Pi is the one piece worth automating later; that is deferred, not dropped.
 - the four `dongle` tiles were removed rather than authored: ADS-B Ultrafeeder, AIS-catcher,
   rtl_433 and WeeWX all need a USB SDR passed into a container, and that passthrough design is
   still an open question. They come back when it is answered.

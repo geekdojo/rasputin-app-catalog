@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -97,15 +98,59 @@ func TestEchoUser_DefusesMentionsAndMarkdown(t *testing.T) {
 // vote to prioritize the bench — not a duplicate. Conflating the two turns the
 // most useful signal the intake collects into a rejection.
 func TestTileStatus_PreviewIsNotTheSameAsShipped(t *testing.T) {
+	// Hermetic on purpose. This used to assert against whichever real tiles
+	// happened to be preview (paperless-ngx), so flipping the corpus to
+	// all-available in catalog v10 broke a test that was not about the corpus
+	// at all — it is about tileStatus telling the three cases apart. A fixture
+	// keeps the assertion and drops the coupling.
+	dir := t.TempDir()
+	write := func(id, body string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Join(dir, "tiles", id), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "tiles", id, "tile.json"), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("shipped-tile", `{"id":"shipped-tile"}`)                        // absent status == available
+	write("explicit-tile", `{"id":"explicit-tile","status":"available"}`) // and stated outright
+	write("preview-tile", `{"id":"preview-tile","status":"preview"}`)
+
+	prev, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(prev) })
+
+	for id, want := range map[string]string{
+		"shipped-tile":          statusAvailable,
+		"explicit-tile":         statusAvailable,
+		"preview-tile":          statusPreview,
+		"definitely-not-a-tile": statusNone,
+	} {
+		if got := tileStatus(id); got != want {
+			t.Errorf("tileStatus(%q) = %q, want %q", id, got, want)
+		}
+	}
+}
+
+// The real corpus must still be readable through the same call — a fixture-only
+// test would pass against a layout that no longer exists on disk.
+func TestTileStatus_ReadsTheRealCorpus(t *testing.T) {
+	prev, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := os.Chdir("../.."); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.Chdir("cmd/triage") })
+	t.Cleanup(func() { _ = os.Chdir(prev) })
 	if got := tileStatus("jellyfin"); got != statusAvailable {
 		t.Errorf("jellyfin ships; got %q", got)
-	}
-	if got := tileStatus("paperless-ngx"); got != statusPreview {
-		t.Errorf("paperless-ngx is a preview tile; got %q", got)
 	}
 	if got := tileStatus("definitely-not-a-tile"); got != statusNone {
 		t.Errorf("unknown id should be statusNone; got %q", got)

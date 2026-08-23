@@ -17,7 +17,6 @@
       "primary": true
     }
   ],
-  "status": "preview",
   "website": "https://github.com/itzg/docker-minecraft-server",
   "icon": "\u26cf\ufe0f",
   "postInstall": "Point your Minecraft client at <node>.local:25565 to join."
