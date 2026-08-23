@@ -1,0 +1,18 @@
+{
+  "tile": "home-assistant",
+  "image": "ghcr.io/home-assistant/home-assistant:2026.8.3@sha256:14931c6b13756317849f46da1d01b45937a1150db66c081cfe529d48215943fe",
+  "sourceAvailable": [],
+  "copyleft": [
+    "AGPL-3.0",
+    "AGPL-3.0-only",
+    "AGPL-3.0-or-later",
+    "GPL-3.0",
+    "GPL-3.0-only",
+    "GPL-3.0-or-later",
+    "GPL-3.0-or-later OR Apache-2.0",
+    "GPL-3.0-with-GCC-exception",
+    "LGPL-3.0",
+    "LGPL-3.0-only",
+    "LGPL-3.0-or-later"
+  ]
+}

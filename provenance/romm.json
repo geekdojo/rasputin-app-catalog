@@ -1,0 +1,13 @@
+{
+  "tile": "romm",
+  "image": "rommapp/romm:5.2.0@sha256:3512f2ca455782f90247271bed23116e6bc675bc74e379be2c41696e607ab11e",
+  "sourceAvailable": [],
+  "copyleft": [
+    "GPL-3.0",
+    "GPL-3.0-only",
+    "GPL-3.0-or-later",
+    "LGPL-3.0",
+    "LGPL-3.0-only",
+    "LGPL-3.0-or-later"
+  ]
+}
