@@ -1,0 +1,20 @@
+{
+  "tile": "vaultwarden",
+  "image": "vaultwarden/server:1.37.2@sha256:094b5689ed81549bd293418395c7cf495ae9d960fc2d4928cef2083ef913d912",
+  "sourceAvailable": [],
+  "copyleft": [
+    "GPL-3+ with Autoconf generic exception",
+    "GPL-3+ with Autoconf-data exception",
+    "GPL-3+ with Bison exception",
+    "GPL-3+ with Bison-2.2 exception",
+    "GPL-3+ with Libtool exception",
+    "GPL-3+ with texinfo exception",
+    "GPL-3.0",
+    "GPL-3.0-only",
+    "GPL-3.0-or-later",
+    "GPL-3.0-or-later-WITH-Autoconf-exception-macro",
+    "GPL-3.0-with-autoconf-exception+",
+    "LGPL-3.0-only",
+    "LGPL-3.0-or-later"
+  ]
+}

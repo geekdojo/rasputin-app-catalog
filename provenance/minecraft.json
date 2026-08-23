@@ -1,0 +1,25 @@
+{
+  "tile": "minecraft",
+  "image": "itzg/minecraft-server:2026.8.2@sha256:efa878ddb49cf5251b2e5f2ad71b08fd2f7236c1f7907433f6697258b31d2ce4",
+  "sourceAvailable": [],
+  "copyleft": [
+    "AGPL-3",
+    "AGPL-3 with Font exception",
+    "AGPL-3+",
+    "AGPL-3+ with font exception",
+    "BSD-3-clause and/or GPL-3+",
+    "GPL-3+ with Autoconf-data exception",
+    "GPL-3+ with Bison exception",
+    "GPL-3+ with Bison-2.2 exception",
+    "GPL-3+ with Libtool exception",
+    "GPL-3+ with texinfo exception",
+    "GPL-3.0",
+    "GPL-3.0-only",
+    "GPL-3.0-or-later",
+    "GPL-3.0-with-GCC-exception",
+    "GPL-3.0-with-autoconf-exception+",
+    "LGPL-3.0",
+    "LGPL-3.0-only",
+    "LGPL-3.0-or-later"
+  ]
+}
