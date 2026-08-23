@@ -17,7 +17,6 @@
       "primary": true
     }
   ],
-  "status": "preview",
   "website": "https://github.com/paperless-ngx/paperless-ngx",
   "icon": "\ud83d\udcc4",
   "postInstall": "Open it, create your admin account, then drop PDFs into the consume folder or upload from the web."

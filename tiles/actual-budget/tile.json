@@ -17,7 +17,6 @@
       "primary": true
     }
   ],
-  "status": "preview",
   "website": "https://actualbudget.org",
   "icon": "\ud83d\udcb0",
   "postInstall": "Open it and create your budget file \u2014 everything stays local."

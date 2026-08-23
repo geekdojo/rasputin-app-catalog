@@ -17,7 +17,6 @@
       "primary": true
     }
   ],
-  "status": "preview",
   "website": "https://github.com/dani-garcia/vaultwarden",
   "icon": "\ud83d\udd12",
   "postInstall": "Open it, create your admin account, then install the Bitwarden browser extension and point it here."

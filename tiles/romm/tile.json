@@ -17,7 +17,6 @@
       "primary": true
     }
   ],
-  "status": "preview",
   "website": "https://github.com/rommapp/romm",
   "icon": "\ud83d\udd79\ufe0f",
   "postInstall": "Open it, create your account, and point it at your ROMs folder."

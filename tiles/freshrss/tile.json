@@ -17,7 +17,6 @@
       "primary": true
     }
   ],
-  "status": "preview",
   "website": "https://freshrss.org",
   "icon": "\ud83d\udcf0",
   "postInstall": "Open it, create your account, and add a few feeds to get started."
