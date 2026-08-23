@@ -1,0 +1,47 @@
+# The DIGEST is the pin — a tag stays mutable at the registry however specific it
+# looks, so the tag here is human-readable sugar (ADR-0006 Decision 8). Version is
+# provisional until the tile clears the hardware bench.
+services:
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:v3.1.0@sha256:b434cb9287eea1471c9974845914d4dd328c9c2d652e446ed4930f99944f0ceb
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - database
+    environment:
+      DB_HOSTNAME: database
+      DB_USERNAME: immich
+      DB_DATABASE_NAME: immich
+      # Internal to this stack's network — postgres publishes no port.
+      DB_PASSWORD: immich
+      REDIS_HOSTNAME: redis
+    volumes:
+      - immich-upload:/data
+    ports:
+      - "2283:2283"
+
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:v3.1.0@sha256:5a0839dc5303cd7215bcd2180a26aed3af41675aefb3e75e5157e9f10ad16e6e
+    restart: unless-stopped
+    volumes:
+      - immich-model-cache:/cache
+
+  redis:
+    image: valkey/valkey:9@sha256:70739f85ad2ee01a726a965584a0f94895f01b0c60b3cc8b0aeef11eaa6888cf
+    restart: unless-stopped
+
+  database:
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: immich
+      POSTGRES_PASSWORD: immich
+      POSTGRES_DB: immich
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    volumes:
+      - immich-db:/var/lib/postgresql/data
+
+volumes:
+  immich-upload:
+  immich-model-cache:
+  immich-db:

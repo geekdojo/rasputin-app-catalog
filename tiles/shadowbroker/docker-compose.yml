@@ -1,0 +1,47 @@
+# The DIGEST is the pin — a tag stays mutable at the registry however specific it
+# looks, so the tag here is human-readable sugar (ADR-0006 Decision 8). Version is
+# provisional until the tile clears the hardware bench.
+#
+# UPSTREAM DEFAULTS DELIBERATELY OVERRIDDEN. Shadowbroker ships with its
+# peer-to-peer "Infonet" ON: MESH_INFONET_FLEET_JOIN defaults to true and
+# MESH_BOOTSTRAP_SEED_PEERS defaults to a hard-coded .onion address. A tile
+# that quietly enrols an owner's appliance into a third-party mesh on install
+# is not a default we can make for them, so every mesh switch is pinned off
+# here. Turning it on is an informed choice, made once, by the owner.
+services:
+  backend:
+    image: ghcr.io/bigbodycobain/shadowbroker-backend:0.9.84@sha256:8b4bfdc01da491c37c0523ffbcb5dc3beb29324805abd35fcef436ae11511f18
+    restart: unless-stopped
+    environment:
+      # Infonet OFF. See the header — these five are the whole switch.
+      MESH_INFONET_FLEET_JOIN: "false"
+      MESH_BOOTSTRAP_SEED_PEERS: ""
+      MESH_INFONET_ALLOW_CLEARNET_SYNC: "false"
+      MESH_ARTI_ENABLED: "false"
+      MESH_RELAY_PEERS: ""
+      # Optional upstream data sources. GDELT works with no key at all, so the
+      # console is useful out of the box; the rest light up as keys are added.
+      AIS_API_KEY: ""
+      OPENSKY_CLIENT_ID: ""
+      OPENSKY_CLIENT_SECRET: ""
+      GFW_API_TOKEN: ""
+      WINDY_API_KEY: ""
+      FINNHUB_API_KEY: ""
+      AIRFRAMES_API_KEY: ""
+    volumes:
+      - shadowbroker-data:/app/data
+    ports:
+      - "8200:8000"
+
+  frontend:
+    image: ghcr.io/bigbodycobain/shadowbroker-frontend:0.9.84@sha256:c509735c2a0ba75f300db82e16270bc983fb11c33f57f4c027cba4b9721bb48f
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      BACKEND_URL: http://backend:8000
+    ports:
+      - "3200:3000"
+
+volumes:
+  shadowbroker-data:

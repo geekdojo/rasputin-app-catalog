@@ -1,0 +1,41 @@
+# The DIGEST is the pin — a tag stays mutable at the registry however specific it
+# looks, so the tag here is human-readable sugar (ADR-0006 Decision 8). Version is
+# provisional until the tile clears the hardware bench.
+services:
+  romm:
+    image: rommapp/romm:5.2.0@sha256:3512f2ca455782f90247271bed23116e6bc675bc74e379be2c41696e607ab11e
+    restart: unless-stopped
+    depends_on:
+      - romm-db
+    environment:
+      DB_HOST: romm-db
+      DB_NAME: romm
+      DB_USER: romm
+      # Internal to this stack's network — mariadb publishes no port.
+      DB_PASSWD: romm
+      ROMM_AUTH_SECRET_KEY: change-me-on-first-run
+    volumes:
+      - romm-resources:/romm/resources
+      - romm-config:/romm/config
+      - romm-library:/romm/library
+      - romm-assets:/romm/assets
+    ports:
+      - "8084:8080"
+
+  romm-db:
+    image: mariadb:12.3.2@sha256:a02fe89cb597d4375812b2eac90cf9d0775d4686daa7f7cc750ebbcad7525bbc
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: romm
+      MARIADB_USER: romm
+      MARIADB_PASSWORD: romm
+      MARIADB_ROOT_PASSWORD: romm-root
+    volumes:
+      - romm-db:/var/lib/mysql
+
+volumes:
+  romm-resources:
+  romm-config:
+  romm-library:
+  romm-assets:
+  romm-db:
