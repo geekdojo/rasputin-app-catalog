@@ -35,9 +35,13 @@ somebody has already installed.** Treat ids as frozen once published.
 | `available` | Benched on real Pi 5 + N100 hardware, pinned, installable. |
 | `preview` | Shown in the grid so the catalog reflects the roadmap; install is refused (409). May omit its compose entirely. |
 
-A tile flips `preview` → `available` only after it clears the hardware bench — real RAM/CPU
-measured, the published arm64 image proven to actually run on the Pi, and a screenshot captured.
-Desk research does not qualify.
+A tile flips `preview` → `available` only after it clears the hardware bench: installed and
+exercised on real Pi 5 and N100 nodes by a person. Desk research does not qualify.
+
+**`ramFloorMB` today is upstream's documented minimum, cited — not a measured figure.** That is
+true of every tile in the corpus, including the `available` ones: the bench converts desk figures
+into measured ones and has not yet run for them. Read the badge as the vendor's floor, and not as
+a number we have observed.
 
 Today: **23 tiles — 5 available, 18 preview.**
 
@@ -180,14 +184,16 @@ clears the bench, and no part of this pipeline can grant `available`.
 
 This repo is being stood up incrementally. Still to land:
 
-- the control plane fetching and verifying the published bundle,
-- the hardware bench stage that flips `preview` → `available`.
+- the hardware bench itself, for 18 of the 23 tiles. It is a person's job and stays that way —
+  the E19 pipeline will not be automating it. Proving a published arm64 image really executes on
+  a Pi is the one piece worth automating later; that is deferred, not dropped.
 
 The signed bundle and its publish pipeline are live: **every merge to `main` publishes a new
 signed catalog release.** Bundles are signed with a dedicated app-catalog leaf under Geekdojo's
 IANA PEN 66587, carrying a catalog-only EKU — that leaf cannot sign an OS or firmware artifact
-even though it shares the trust root. The app-request intake template and the agent-assisted
-drafting pipeline have landed too — see **Requesting an app** above.
+even though it shares the trust root. The control plane fetches and verifies that bundle on a
+24-hour poll and refuses anything older than the catalog it already holds. The app-request intake
+template and the agent-assisted drafting pipeline have landed too — see **Requesting an app** above.
 
 Until the publish pipeline exists, `rasputin-control-plane` keeps its own copy of `tiles/` as the
 shipping catalog. **This repo is the authoring home; that copy is a temporary duplicate** and is
