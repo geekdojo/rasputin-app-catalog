@@ -121,7 +121,7 @@ func checkTile(root, id string, probe bool) (problems, notices []string, unverif
 		if snippetFixes(tile, facts) {
 			problems = append(problems, "declare it in tile.json:\n"+declarationSnippet(tile, facts))
 		}
-	} else if d := tileschema.DerivePrivilege(facts); d.Tier != tileschema.TierRoutine && strings.TrimSpace(tile.Privilege.Why) == "" {
+	} else if d := tileschema.DerivePrivilege(facts); d.Tier != tileschema.TierRoutine && strings.TrimSpace(tile.DeclaredPrivilege().Why) == "" {
 		// ADR-0006 Decision 12c: consent needs an explainer, and a machine
 		// cannot tell a good reason from a bad one — but it can tell a missing
 		// one. Enforced HERE rather than in tileschema because it is editorial
@@ -150,10 +150,11 @@ func checkTile(root, id string, probe bool) (problems, notices []string, unverif
 // something gets its own line, because a declaration nothing can check is the
 // case actually worth a second look.
 func unverifiablePrivilege(t tileschema.Tile) []string {
-	if t.Privilege.Tier == "" {
+	declared := t.DeclaredPrivilege()
+	if declared.Tier == "" {
 		return nil
 	}
-	return []string{fmt.Sprintf("declares privilege %q but there is no compose to check it against — unverified until this tile ships a stack", t.Privilege.Tier)}
+	return []string{fmt.Sprintf("declares privilege %q but there is no compose to check it against — unverified until this tile ships a stack", declared.Tier)}
 }
 
 // snippetFixes reports whether pasting the derived declaration would actually
@@ -167,8 +168,9 @@ func unverifiablePrivilege(t tileschema.Tile) []string {
 // error — worse than printing nothing, because it looks like the answer.
 func snippetFixes(t tileschema.Tile, f tileschema.SafetyFacts) bool {
 	fixed := t
-	fixed.Privilege = tileschema.DerivePrivilege(f)
-	fixed.Privilege.Why = t.Privilege.Why
+	derived := tileschema.DerivePrivilege(f)
+	derived.Why = t.DeclaredPrivilege().Why
+	fixed.Privilege = &derived
 	fixed.Requires = withCapability(t.Requires)
 	return tileschema.ValidateTileSafety(fixed, f) == nil
 }
@@ -178,8 +180,8 @@ func snippetFixes(t tileschema.Tile, f tileschema.SafetyFacts) bool {
 // names cannot drift from the ones the reader parses.
 func declarationSnippet(t tileschema.Tile, f tileschema.SafetyFacts) string {
 	d := tileschema.DerivePrivilege(f)
-	if strings.TrimSpace(t.Privilege.Why) != "" {
-		d.Why = t.Privilege.Why
+	if why := strings.TrimSpace(t.DeclaredPrivilege().Why); why != "" {
+		d.Why = why
 	} else {
 		d.Why = "TODO: one line an owner reads before consenting"
 	}
@@ -236,11 +238,11 @@ func privilegeNotices(t tileschema.Tile, f tileschema.SafetyFacts) []string {
 	// Over-declaration is permitted by the validator on purpose — a tile may
 	// be conservative. It is still worth saying, because a badge scarier than
 	// the stack teaches an owner to click through the next one.
-	if extra := overDeclared(t.Privilege, derived); len(extra) > 0 {
+	if extra := overDeclared(t.DeclaredPrivilege(), derived); len(extra) > 0 {
 		out = append(out, "declares privilege it does not take: "+strings.Join(extra, " "))
 	}
-	if tileschema.TierRank[t.Privilege.EffectiveTier()] > tileschema.TierRank[derived.Tier] {
-		out = append(out, fmt.Sprintf("declares tier %q for a %q stack", t.Privilege.EffectiveTier(), derived.Tier))
+	if tileschema.TierRank[t.DeclaredPrivilege().EffectiveTier()] > tileschema.TierRank[derived.Tier] {
+		out = append(out, fmt.Sprintf("declares tier %q for a %q stack", t.DeclaredPrivilege().EffectiveTier(), derived.Tier))
 	}
 	return out
 }
