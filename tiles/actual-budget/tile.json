@@ -8,6 +8,15 @@
   "arch": "both",
   "ramFloorMB": 256,
   "exposureDefault": "lan-only",
+  "ports": [
+    {
+      "name": "web",
+      "container": 5006,
+      "published": 5006,
+      "protocol": "tcp",
+      "primary": true
+    }
+  ],
   "status": "preview",
   "website": "https://actualbudget.org",
   "icon": "\ud83d\udcb0",

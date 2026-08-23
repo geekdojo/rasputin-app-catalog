@@ -43,7 +43,8 @@ true of every tile in the corpus, including the `available` ones: the bench conv
 into measured ones and has not yet run for them. Read the badge as the vendor's floor, and not as
 a number we have observed.
 
-Today: **23 tiles — 5 available, 18 preview.**
+Today: **18 tiles — 5 available, 13 preview.** Every tile ships a compose; the 14 are
+awaiting the hardware bench, not an author.
 
 ## Catalog version
 
@@ -184,9 +185,15 @@ clears the bench, and no part of this pipeline can grant `available`.
 
 This repo is being stood up incrementally. Still to land:
 
-- the hardware bench itself, for 18 of the 23 tiles. It is a person's job and stays that way —
+- the hardware bench itself, for 13 of the 18 tiles. It is a person's job and stays that way —
   the E19 pipeline will not be automating it. Proving a published arm64 image really executes on
   a Pi is the one piece worth automating later; that is deferred, not dropped.
+- the four `dongle` tiles were removed rather than authored: ADS-B Ultrafeeder, AIS-catcher,
+  rtl_433 and WeeWX all need a USB SDR passed into a container, and that passthrough design is
+  still an open question. They come back when it is answered.
+- Trilium Notes was authored and then pulled: 96 fixable HIGH/CRITICAL in the app's own
+  dependencies, including a CRITICAL, is not a supply chain we want to hand somebody. It comes
+  back if upstream clears them.
 
 The signed bundle and its publish pipeline are live: **every merge to `main` publishes a new
 signed catalog release.** Bundles are signed with a dedicated app-catalog leaf under Geekdojo's

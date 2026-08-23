@@ -1,0 +1,9 @@
+{
+  "tile": "shadowbroker",
+  "image": "ghcr.io/bigbodycobain/shadowbroker-frontend:0.9.84@sha256:c509735c2a0ba75f300db82e16270bc983fb11c33f57f4c027cba4b9721bb48f",
+  "sourceAvailable": [],
+  "copyleft": [
+    "GPL-3.0-with-autoconf-exception",
+    "LGPL-3.0-or-later"
+  ]
+}

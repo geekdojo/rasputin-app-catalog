@@ -1,0 +1,36 @@
+# The DIGEST is the pin — a tag stays mutable at the registry however specific it
+# looks, so the tag here is human-readable sugar (ADR-0006 Decision 8). Version is
+# provisional until the tile clears the hardware bench.
+services:
+  karakeep:
+    image: ghcr.io/karakeep-app/karakeep:0.33.2@sha256:b069e4307dec06ea06d16989c6861c30a1ff208568be44ed5fb5d422cd3e950c
+    restart: unless-stopped
+    depends_on:
+      - meilisearch
+    environment:
+      MEILI_ADDR: http://meilisearch:7700
+      # Both must be replaced with unique values before this tile ships.
+      NEXTAUTH_SECRET: change-me-on-first-run
+      MEILI_MASTER_KEY: change-me-on-first-run
+      NEXTAUTH_URL: http://localhost:3000
+      DISABLE_NEW_RELEASE_CHECK: "true"
+      # Bookmark crawling wants a headless Chrome sidecar upstream ships
+      # separately; without it link previews degrade but the app runs.
+      CRAWLER_ENABLED: "false"
+    volumes:
+      - karakeep-data:/data
+    ports:
+      - "3000:3000"
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.53.1@sha256:8d6643d86d71fad6ad3cba92cde7ccfce9e4d6c384bda67598eb553571c32431
+    restart: unless-stopped
+    environment:
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_MASTER_KEY: change-me-on-first-run
+    volumes:
+      - karakeep-meili:/meili_data
+
+volumes:
+  karakeep-data:
+  karakeep-meili:

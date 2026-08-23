@@ -1,0 +1,56 @@
+# The DIGEST is the pin — a tag stays mutable at the registry however specific it
+# looks, so the tag here is human-readable sugar (ADR-0006 Decision 8). Version is
+# provisional until the tile clears the hardware bench.
+services:
+  prowlarr:
+    image: ghcr.io/linuxserver/prowlarr:2.5.2.5491-ls156@sha256:1295cff29d10b486c0d8324d1559a552140a5932bf8b3d87e398654414f63f92
+    restart: unless-stopped
+    environment: &arrenv
+      PUID: "1000"
+      PGID: "1000"
+      TZ: UTC
+    volumes:
+      - prowlarr-config:/config
+    ports:
+      - "9696:9696"
+
+  sonarr:
+    image: ghcr.io/linuxserver/sonarr:4.0.19.2979-ls322@sha256:c19aa4ecdf03d73e1d5c901da33744cb7eb4d921f89bafed1ca264601d7fa224
+    restart: unless-stopped
+    environment: *arrenv
+    volumes:
+      - sonarr-config:/config
+      - arr-media:/media
+    ports:
+      - "8989:8989"
+
+  radarr:
+    image: ghcr.io/linuxserver/radarr:6.3.0.10514-ls313@sha256:a45b5ab0f850f39edb4cc9c95bbd967b52ddc3d4574a4dfb45561177db6c88f4
+    restart: unless-stopped
+    environment: *arrenv
+    volumes:
+      - radarr-config:/config
+      - arr-media:/media
+    ports:
+      - "7878:7878"
+
+  qbittorrent:
+    image: ghcr.io/linuxserver/qbittorrent:5.2.3_v2.0.14-ls473@sha256:304b19cf94bf4fda534e0b086cab9c5f1a9e139a8180c05c0ad7d2ba1526fa99
+    restart: unless-stopped
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: UTC
+      WEBUI_PORT: "8090"
+    volumes:
+      - qbittorrent-config:/config
+      - arr-media:/media
+    ports:
+      - "8090:8090"
+
+volumes:
+  prowlarr-config:
+  sonarr-config:
+  radarr-config:
+  qbittorrent-config:
+  arr-media:

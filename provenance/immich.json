@@ -1,0 +1,18 @@
+{
+  "tile": "immich",
+  "image": "valkey/valkey:9@sha256:70739f85ad2ee01a726a965584a0f94895f01b0c60b3cc8b0aeef11eaa6888cf",
+  "sourceAvailable": [],
+  "copyleft": [
+    "GPL-3+ with Autoconf-data exception",
+    "GPL-3+ with Bison exception",
+    "GPL-3+ with Bison-2.2 exception",
+    "GPL-3+ with texinfo exception",
+    "GPL-3.0",
+    "GPL-3.0-only",
+    "GPL-3.0-or-later",
+    "GPL-3.0-or-later-WITH-Autoconf-exception-macro",
+    "GPL-3.0-with-autoconf-exception+",
+    "LGPL-3.0-only",
+    "LGPL-3.0-or-later"
+  ]
+}

@@ -1,0 +1,14 @@
+# The DIGEST is the pin — a tag stays mutable at the registry however specific it
+# looks, so the tag here is human-readable sugar (ADR-0006 Decision 8). Version is
+# provisional until the tile clears the hardware bench.
+services:
+  actual-budget:
+    image: actualbudget/actual-server:26.8.1@sha256:6478d9ddfc0924479c09e6699c205e354c6f2216dfe7de3c0fb7b590d6edcdc5
+    restart: unless-stopped
+    volumes:
+      - actual-data:/data
+    ports:
+      - "5006:5006"
+
+volumes:
+  actual-data:

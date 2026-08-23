@@ -8,6 +8,36 @@
   "arch": "both",
   "ramFloorMB": 2048,
   "exposureDefault": "lan-only",
+  "ports": [
+    {
+      "name": "sonarr",
+      "container": 8989,
+      "published": 8989,
+      "protocol": "tcp",
+      "primary": true
+    },
+    {
+      "name": "radarr",
+      "container": 7878,
+      "published": 7878,
+      "protocol": "tcp",
+      "primary": false
+    },
+    {
+      "name": "prowlarr",
+      "container": 9696,
+      "published": 9696,
+      "protocol": "tcp",
+      "primary": false
+    },
+    {
+      "name": "qbittorrent",
+      "container": 8090,
+      "published": 8090,
+      "protocol": "tcp",
+      "primary": false
+    }
+  ],
   "status": "preview",
   "website": "https://wiki.servarr.com",
   "icon": "\ud83c\udf9e\ufe0f",

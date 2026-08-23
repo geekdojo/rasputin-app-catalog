@@ -9,6 +9,15 @@
   "placementHint": "prefer-x86",
   "ramFloorMB": 8192,
   "exposureDefault": "lan-only",
+  "ports": [
+    {
+      "name": "web",
+      "container": 2283,
+      "published": 2283,
+      "protocol": "tcp",
+      "primary": true
+    }
+  ],
   "status": "preview",
   "website": "https://github.com/immich-app/immich",
   "icon": "\ud83d\udcf8",

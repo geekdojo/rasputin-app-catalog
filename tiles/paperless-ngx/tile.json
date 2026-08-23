@@ -8,6 +8,15 @@
   "arch": "both",
   "ramFloorMB": 1024,
   "exposureDefault": "lan-only",
+  "ports": [
+    {
+      "name": "web",
+      "container": 8000,
+      "published": 8000,
+      "protocol": "tcp",
+      "primary": true
+    }
+  ],
   "status": "preview",
   "website": "https://github.com/paperless-ngx/paperless-ngx",
   "icon": "\ud83d\udcc4",

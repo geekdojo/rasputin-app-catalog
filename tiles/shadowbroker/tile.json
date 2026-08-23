@@ -12,6 +12,22 @@
     "AISStream"
   ],
   "exposureDefault": "lan-only",
+  "ports": [
+    {
+      "name": "web",
+      "container": 3000,
+      "published": 3200,
+      "protocol": "tcp",
+      "primary": true
+    },
+    {
+      "name": "api",
+      "container": 8000,
+      "published": 8200,
+      "protocol": "tcp",
+      "primary": false
+    }
+  ],
   "status": "preview",
   "website": "https://github.com/bigbodycobain/shadowbroker",
   "icon": "\ud83d\udef0\ufe0f",

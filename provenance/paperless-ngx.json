@@ -1,0 +1,6 @@
+{
+  "tile": "paperless-ngx",
+  "image": "valkey/valkey:9-alpine@sha256:de31910896150d5e754a07d57d227cfdde4e258ddd0d1aa4607f2d2f95843715",
+  "sourceAvailable": [],
+  "copyleft": []
+}

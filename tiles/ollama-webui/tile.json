@@ -9,6 +9,15 @@
   "placementHint": "prefer-x86",
   "ramFloorMB": 4096,
   "exposureDefault": "lan-only",
+  "ports": [
+    {
+      "name": "web",
+      "container": 8080,
+      "published": 3080,
+      "protocol": "tcp",
+      "primary": true
+    }
+  ],
   "status": "preview",
   "website": "https://github.com/open-webui/open-webui",
   "icon": "\ud83e\udd16",

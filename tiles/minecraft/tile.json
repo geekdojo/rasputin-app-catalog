@@ -8,6 +8,15 @@
   "arch": "both",
   "ramFloorMB": 2048,
   "exposureDefault": "lan-only",
+  "ports": [
+    {
+      "name": "game",
+      "container": 25565,
+      "published": 25565,
+      "protocol": "tcp",
+      "primary": true
+    }
+  ],
   "status": "preview",
   "website": "https://github.com/itzg/docker-minecraft-server",
   "icon": "\u26cf\ufe0f",

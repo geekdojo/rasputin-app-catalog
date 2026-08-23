@@ -1,0 +1,26 @@
+# The DIGEST is the pin — a tag stays mutable at the registry however specific it
+# looks, so the tag here is human-readable sugar (ADR-0006 Decision 8). Version is
+# provisional until the tile clears the hardware bench.
+services:
+  minecraft:
+    image: itzg/minecraft-server:2026.8.2@sha256:efa878ddb49cf5251b2e5f2ad71b08fd2f7236c1f7907433f6697258b31d2ce4
+    restart: unless-stopped
+    environment:
+      # Mojang's EULA (https://aka.ms/MinecraftEULA). The server refuses to
+      # start without this; accepting it here means the catalog accepts on the
+      # owner's behalf at install time.
+      EULA: "TRUE"
+      # NOTE: the IMAGE is digest-pinned, but VERSION=LATEST makes the image
+      # download whatever Minecraft server build is current at first run — so
+      # the game version is NOT pinned and two installs can differ. Pin it to a
+      # specific version before this tile goes available.
+      VERSION: "LATEST"
+      TYPE: "VANILLA"
+      MEMORY: "2G"
+    volumes:
+      - minecraft-data:/data
+    ports:
+      - "25565:25565"
+
+volumes:
+  minecraft-data:

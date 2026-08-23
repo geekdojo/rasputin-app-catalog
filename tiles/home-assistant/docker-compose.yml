@@ -1,0 +1,19 @@
+# The DIGEST is the pin — a tag stays mutable at the registry however specific it
+# looks, so the tag here is human-readable sugar (ADR-0006 Decision 8). Version is
+# provisional until the tile clears the hardware bench.
+services:
+  home-assistant:
+    image: ghcr.io/home-assistant/home-assistant:2026.8.3@sha256:14931c6b13756317849f46da1d01b45937a1150db66c081cfe529d48215943fe
+    restart: unless-stopped
+    # Host networking is what makes local discovery work — mDNS, SSDP, DHCP
+    # sniffing and matter/thread all need the LAN broadcast domain directly.
+    # In bridge mode Home Assistant runs but finds almost nothing, which is
+    # the feature people install it for. Declared, not silent.
+    network_mode: host
+    environment:
+      TZ: UTC
+    volumes:
+      - homeassistant-config:/config
+
+volumes:
+  homeassistant-config:

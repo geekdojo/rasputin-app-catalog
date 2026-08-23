@@ -1,0 +1,17 @@
+# The DIGEST is the pin — a tag stays mutable at the registry however specific it
+# looks, so the tag here is human-readable sugar (ADR-0006 Decision 8). Version is
+# provisional until the tile clears the hardware bench.
+services:
+  mealie:
+    image: ghcr.io/mealie-recipes/mealie:v3.23.1@sha256:5fc5cebedddb3952c1ee78f20faf42ab7e49986813fd314745aa97978a4a13eb
+    restart: unless-stopped
+    environment:
+      ALLOW_SIGNUP: "false"
+      TZ: UTC
+    volumes:
+      - mealie-data:/app/data
+    ports:
+      - "9000:9000"
+
+volumes:
+  mealie-data:
