@@ -96,8 +96,8 @@ func TestLint_SnippetIsPasteableAndSatisfiesTheValidator(t *testing.T) {
 	// Wrap the fragment into an object and decode it as a Tile, exactly as a
 	// contributor pasting it into tile.json would.
 	var parsed struct {
-		Requires  []string             `json:"requires"`
-		Privilege tileschema.Privilege `json:"privilege"`
+		Requires  []string              `json:"requires"`
+		Privilege *tileschema.Privilege `json:"privilege"`
 	}
 	if err := json.Unmarshal([]byte("{\n"+snippet+"\n}"), &parsed); err != nil {
 		t.Fatalf("snippet is not valid JSON: %v\n%s", err, snippet)
@@ -106,6 +106,9 @@ func TestLint_SnippetIsPasteableAndSatisfiesTheValidator(t *testing.T) {
 	tile := baseTile("paste")
 	tile.Requires = parsed.Requires
 	tile.Privilege = parsed.Privilege
+	if tile.Privilege == nil {
+		t.Fatal("snippet decoded to no privilege at all")
+	}
 	tile.Privilege.Why = "because the test says so"
 	tile.ComposeYAML = hostTrustingCompose
 
@@ -122,7 +125,7 @@ func TestLint_MissingWhyIsAProblem(t *testing.T) {
 	root := t.TempDir()
 	tile := baseTile("nowhy")
 	tile.Requires = []string{tileschema.CapabilityPrivilegeTiers}
-	tile.Privilege = tileschema.Privilege{
+	tile.Privilege = &tileschema.Privilege{
 		Tier:   tileschema.TierHostTrusting,
 		Grants: []string{tileschema.GrantPrivileged, tileschema.GrantHostNetwork},
 	}
@@ -146,7 +149,7 @@ func TestLint_OverDeclarationIsANoticeNotAProblem(t *testing.T) {
 	root := t.TempDir()
 	tile := baseTile("over")
 	tile.Requires = []string{tileschema.CapabilityPrivilegeTiers}
-	tile.Privilege = tileschema.Privilege{
+	tile.Privilege = &tileschema.Privilege{
 		Tier:   tileschema.TierHostTrusting,
 		Grants: []string{tileschema.GrantPrivileged},
 		Why:    "we would rather over-warn",
@@ -192,7 +195,7 @@ func TestLint_PreviewWithoutComposeIsUnverifiedNotRoutine(t *testing.T) {
 	}
 
 	// Declared, though, is the interesting case and gets its own line.
-	tile.Privilege = tileschema.Privilege{Tier: tileschema.TierElevated, Why: "will need a radio"}
+	tile.Privilege = &tileschema.Privilege{Tier: tileschema.TierElevated, Why: "will need a radio"}
 	tile.Requires = []string{tileschema.CapabilityPrivilegeTiers}
 	writeTile(t, root, "soon", tile, "")
 	_, notices, unverified = checkTile(root, "soon", false)
