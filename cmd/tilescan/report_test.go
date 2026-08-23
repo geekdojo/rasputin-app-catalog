@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/geekdojo/rasputin-app-catalog/internal/scan"
@@ -104,5 +106,37 @@ func TestReport_VerifyStillFlagsRealDrift(t *testing.T) {
 	}
 	if got := report(id, "img@sha256:bb", changed, nil, dir, false); got == 0 {
 		t.Error("report(verify) failures = 0, want >0 — a licence change must still be caught")
+	}
+}
+
+// acceptedReason is prose. The audiobookshelf entry alone contains two "->"
+// arrows, and MarshalIndent's default HTML escaping rewrote that whole line on
+// every -write — churn in the one field the file exists to make reviewable.
+func TestReport_WriteDoesNotHTMLEscapeProse(t *testing.T) {
+	dir := t.TempDir()
+	const id = "audiobookshelf"
+	const reason = "2.17.0 -> 2.36.0 adds two CVEs & removes none, so the count rose 60 -> 62."
+
+	writeProv(t, dir, id, scan.Provenance{Tile: id, Image: "old@sha256:aa", AppFixableCeiling: 62, AcceptedReason: reason})
+	scanned := scan.Provenance{Tile: id, Image: "new@sha256:bb"}
+	if got := report(id, "new@sha256:bb", scanned, nil, dir, true); got != 0 {
+		t.Fatalf("report(write) failures = %d, want 0", got)
+	}
+
+	raw, err := os.ReadFile(filepath.Join(dir, id+".json"))
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	for _, esc := range []string{`\u003e`, `\u003c`, `\u0026`} {
+		if strings.Contains(string(raw), esc) {
+			t.Errorf("file contains %s — prose was HTML-escaped", esc)
+		}
+	}
+	if !strings.Contains(string(raw), "-> 2.36.0") || !strings.Contains(string(raw), "CVEs & removes") {
+		t.Errorf("prose not written literally:\n%s", raw)
+	}
+	// Exactly one trailing newline — Encode appends its own.
+	if !bytes.HasSuffix(raw, []byte("}\n")) || bytes.HasSuffix(raw, []byte("\n\n")) {
+		t.Errorf("want exactly one trailing newline, got %q", raw[max(0, len(raw)-4):])
 	}
 }
