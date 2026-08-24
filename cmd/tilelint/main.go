@@ -8,7 +8,7 @@
 //
 //	tilelint            validate every tile (offline checks only)
 //	tilelint -arch      also probe registries for architecture claims
-//	tilelint -tile pi-hole
+//	tilelint -tile jellyfin
 package main
 
 import (

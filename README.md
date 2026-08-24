@@ -38,22 +38,21 @@ somebody has already installed.** Treat ids as frozen once published.
 A tile flips `preview` → `available` only after it clears the hardware bench: installed and
 exercised on real Pi 5 and N100 nodes by a person. Desk research does not qualify.
 
-> **Exception, 2026-08-23 (Bryce).** Thirteen tiles were flipped to `available` in catalog v10
-> *ahead of* that bench — the whole set authored that day: actual-budget, arr-stack, freshrss,
-> home-assistant, immich, karakeep, mealie, minecraft, ollama-webui, paperless-ngx, romm,
-> shadowbroker and vaultwarden. Their composes lint, their images are digest-pinned and confirmed
-> multi-arch, and every stack parses — but **none of them has been started on any hardware**, and
-> a compose that lints is not a compose that boots. The bench is still owed for all thirteen. The
-> five originally-available tiles (audiobookshelf, jellyfin, navidrome, pi-hole, uptime-kuma) are
-> unaffected by this note.
+> **Bench run, 2026-08-23/24.** Catalog v10 flipped thirteen tiles to `available` ahead of the
+> bench, on Bryce's call, so the bench was owed for all of them. It has now run: every tile in v10
+> was installed on real hardware — N100 and Pi 5 compute nodes on cluster `e3bench` — and its LAN
+> URL fetched and checked for that app's expected first page. **Fifteen of eighteen passed.**
+> `paperless-ngx` never came up and `pi-hole` failed mid image-pull; both were pulled from the
+> catalog in v11 rather than left broken in front of an owner. `home-assistant` deployed cleanly
+> but answered `400 Bad Request`, because it rejects a proxied request unless it is told to trust
+> the proxy; its tile now seeds that configuration, and v11 is its re-bench.
 
-**`ramFloorMB` today is upstream's documented minimum, cited — not a measured figure.** That is
-true of every tile in the corpus, including the `available` ones: the bench converts desk figures
-into measured ones and has not yet run for them. Read the badge as the vendor's floor, and not as
-a number we have observed.
+**`ramFloorMB` today is upstream's documented minimum, cited — not a measured figure.** The bench
+proves a tile boots and serves its first page; it does not measure the tile's memory. Read the
+badge as the vendor's floor, and not as a number we have observed.
 
-Today: **18 tiles — 18 available, 0 preview.** Thirteen of the eighteen still owe the
-hardware bench; see the exception above.
+Today: **16 tiles — 16 available, 0 preview.** Fifteen are bench-passed; `home-assistant` is
+bench-passed for deploy and re-benched in v11 for the proxy-trust fix.
 
 ## Catalog version
 
@@ -150,7 +149,7 @@ signature makes exactly as trustworthy as the compose they came from.
 ```
 go run ./cmd/tilelint           # validate every tile, offline
 go run ./cmd/tilelint -arch     # also ask the registries what each image publishes
-go run ./cmd/tilelint -tile pi-hole
+go run ./cmd/tilelint -tile jellyfin
 ```
 
 The offline run gates every PR. The `-arch` probe runs weekly and on `main` rather than on
