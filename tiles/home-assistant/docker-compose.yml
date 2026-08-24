@@ -2,9 +2,61 @@
 # looks, so the tag here is human-readable sugar (ADR-0006 Decision 8). Version is
 # provisional until the tile clears the hardware bench.
 services:
+  # Home Assistant refuses a proxied request outright — 400 Bad Request, empty body —
+  # when it sees an X-Forwarded-For header it was not told to expect. The node-local
+  # Caddy always sets that header, so out of the box every LAN request to this tile
+  # failed (bench, 2026-08-23). The only place Home Assistant accepts a trusted-proxy
+  # list is configuration.yaml, which it writes itself on first start, so the list has
+  # to be in place BEFORE it starts. This one-shot seeds the file and exits; if a
+  # configuration.yaml is already there it touches nothing, so a reinstall or an
+  # upgrade never clobbers an owner's edits.
+  #
+  # It runs the same pinned Home Assistant image rather than a shell image on purpose:
+  # nothing new to pull, nothing new to arch-probe, nothing new to vouch for.
+  home-assistant-config-seed:
+    image: ghcr.io/home-assistant/home-assistant:2026.8.3@sha256:14931c6b13756317849f46da1d01b45937a1150db66c081cfe529d48215943fe
+    restart: "no"
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >
+        set -eu;
+        mkdir -p /config;
+        if [ -f /config/configuration.yaml ]; then echo "configuration.yaml already present - leaving it alone"; exit 0; fi;
+        printf '%s\n'
+        '# Seeded by Rasputin when this app was installed.'
+        '#'
+        '# Home Assistant is reached through the node-local reverse proxy, which'
+        '# forwards your real client address in X-Forwarded-For. Without the http'
+        '# block below Home Assistant treats that header as untrusted and answers'
+        '# every request with 400 Bad Request. The proxy reaches Home Assistant over'
+        '# loopback, so loopback is the only address that needs trusting.'
+        ''
+        'default_config:'
+        ''
+        'http:'
+        '  use_x_forwarded_for: true'
+        '  trusted_proxies:'
+        '    - "127.0.0.1"'
+        '    - "::1"'
+        ''
+        'automation: !include automations.yaml'
+        'script: !include scripts.yaml'
+        'scene: !include scenes.yaml'
+        > /config/configuration.yaml;
+        printf '%s\n' '[]' > /config/automations.yaml;
+        printf '%s\n' '{}' > /config/scripts.yaml;
+        printf '%s\n' '[]' > /config/scenes.yaml;
+        echo "seeded /config/configuration.yaml"
+    volumes:
+      - homeassistant-config:/config
+
   home-assistant:
     image: ghcr.io/home-assistant/home-assistant:2026.8.3@sha256:14931c6b13756317849f46da1d01b45937a1150db66c081cfe529d48215943fe
     restart: unless-stopped
+    depends_on:
+      home-assistant-config-seed:
+        condition: service_completed_successfully
     # Host networking is what makes local discovery work — mDNS, SSDP, DHCP
     # sniffing and matter/thread all need the LAN broadcast domain directly.
     # In bridge mode Home Assistant runs but finds almost nothing, which is
