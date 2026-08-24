@@ -45,14 +45,20 @@ exercised on real Pi 5 and N100 nodes by a person. Desk research does not qualif
 > `paperless-ngx` never came up and `pi-hole` failed mid image-pull; both were pulled from the
 > catalog in v11 rather than left broken in front of an owner. `home-assistant` deployed cleanly
 > but answered `400 Bad Request`, because it rejects a proxied request unless it is told to trust
-> the proxy; its tile now seeds that configuration, and v11 is its re-bench.
+> the proxy; its tile now seeds that configuration.
+>
+> **v11 re-bench, 2026-08-24: Home Assistant passes.** It deploys on an arm64 node and its LAN URL
+> serves the onboarding screen rather than a `400`. Getting there took a control-plane fix as well
+> as the tile one: the seed is a one-shot container, and the agent read a container that exits by
+> design as a crash, so the deploy failed outright until `rasputin-control-plane#185` taught it to
+> read the exit code alongside the state. **All sixteen tiles in v11 have now cleared the bench.**
 
 **`ramFloorMB` today is upstream's documented minimum, cited — not a measured figure.** The bench
 proves a tile boots and serves its first page; it does not measure the tile's memory. Read the
 badge as the vendor's floor, and not as a number we have observed.
 
-Today: **16 tiles — 16 available, 0 preview.** Fifteen are bench-passed; `home-assistant` is
-bench-passed for deploy and re-benched in v11 for the proxy-trust fix.
+Today: **16 tiles — 16 available, 0 preview, all sixteen bench-passed.** Every tile has been
+installed on real hardware and had its URL checked for the app's expected first page.
 
 ## Catalog version
 
