@@ -52,6 +52,14 @@ exercised on real Pi 5 and N100 nodes by a person. Desk research does not qualif
 > as the tile one: the seed is a one-shot container, and the agent read a container that exits by
 > design as a crash, so the deploy failed outright until `rasputin-control-plane#185` taught it to
 > read the exit code alongside the state. **All sixteen tiles in v11 have now cleared the bench.**
+>
+> **Correction, 2026-08-29: that Home Assistant pass was an artifact of checking too early.**
+> Home Assistant treats a changed `http:` block as a five-minute *trial* and reverts it if no
+> admin confirms it — and on a fresh install no account exists yet to confirm anything. So the
+> tile served its onboarding screen for five minutes, then reverted to a config with no proxy
+> trust in it and went back to `400` for good. Both earlier "passes" were checks that landed
+> inside that window. v13 seeds the setting where Home Assistant now keeps it and re-benched
+> with a check at T+19s **and** T+9m54s.
 
 **`ramFloorMB` today is upstream's documented minimum, cited — not a measured figure.** The bench
 proves a tile boots and serves its first page; it does not measure the tile's memory. Read the
