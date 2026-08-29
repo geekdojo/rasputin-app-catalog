@@ -5,11 +5,47 @@ services:
   # Home Assistant refuses a proxied request outright — 400 Bad Request, empty body —
   # when it sees an X-Forwarded-For header it was not told to expect. The node-local
   # Caddy always sets that header, so out of the box every LAN request to this tile
-  # failed (bench, 2026-08-23). The only place Home Assistant accepts a trusted-proxy
-  # list is configuration.yaml, which it writes itself on first start, so the list has
-  # to be in place BEFORE it starts. This one-shot seeds the file and exits; if a
-  # configuration.yaml is already there it touches nothing, so a reinstall or an
-  # upgrade never clobbers an owner's edits.
+  # failed (bench, 2026-08-23). This one-shot seeds the trust settings BEFORE Home
+  # Assistant starts, and exits.
+  #
+  # WHY THE SETTINGS GO IN .storage/http AND NOT configuration.yaml
+  #
+  # Since 2026.8 the HTTP settings live in the store at /config/.storage/http, and
+  # `http:` in configuration.yaml is a deprecated one-shot import (it breaks in
+  # 2027.2.0). The store holds TWO slots, `stable` and `pending`. An imported YAML
+  # `http:` block lands in `pending`, and a pending config is a TRIAL: unless an
+  # admin promotes it within five minutes, Home Assistant logs
+  #
+  #   Pending HTTP config was not confirmed within 0:05:00; reverting to the
+  #   stable config and restarting
+  #
+  # marks it `not_promoted`, never applies it again, and restarts on `stable` —
+  # which has no proxy trust in it. Promotion is a websocket call behind
+  # @require_admin, and on a fresh install NO ACCOUNT EXISTS YET, so there is
+  # nobody who can confirm it. That is why seeding configuration.yaml alone made
+  # this tile work for exactly five minutes and then permanently un-work itself
+  # (bench, 2026-08-29).
+  #
+  # So the seed writes the settings straight into the `stable` slot with no
+  # `pending` alongside. Nothing to confirm, nothing to revert, no restart. It is
+  # the same file Home Assistant itself writes on every install, in the schema
+  # version this pinned image defines (2.2, read off a running instance) — and if
+  # a future image ever moves that schema, Home Assistant's own store migration
+  # handles it, and its documented failure path is "discard and fall back to
+  # defaults", i.e. back to the 400 this tile started at rather than anything
+  # worse. The image is digest-pinned, so that only ever arrives with a
+  # deliberate bump.
+  #
+  # `yaml_migration_done: true` tells Home Assistant the store is already the
+  # source of truth, so it never stages a YAML import. Correspondingly there is
+  # no `http:` block in the seeded configuration.yaml: with the migration marked
+  # done, one present there would only raise a "your YAML is being ignored"
+  # repair notice.
+  #
+  # Both files are seeded only if absent, so a reinstall or an upgrade never
+  # clobbers an owner's edits — and an owner who wants to change these settings
+  # has Settings > System > Network in the UI, which promotes its own pending
+  # config properly.
   #
   # It runs the same pinned Home Assistant image rather than a shell image on purpose:
   # nothing new to pull, nothing new to arch-probe, nothing new to vouch for.
@@ -19,35 +55,76 @@ services:
     entrypoint:
       - /bin/sh
       - -c
-      - >
-        set -eu;
-        mkdir -p /config;
-        if [ -f /config/configuration.yaml ]; then echo "configuration.yaml already present - leaving it alone"; exit 0; fi;
-        printf '%s\n'
-        '# Seeded by Rasputin when this app was installed.'
-        '#'
-        '# Home Assistant is reached through the node-local reverse proxy, which'
-        '# forwards your real client address in X-Forwarded-For. Without the http'
-        '# block below Home Assistant treats that header as untrusted and answers'
-        '# every request with 400 Bad Request. The proxy reaches Home Assistant over'
-        '# loopback, so loopback is the only address that needs trusting.'
-        ''
-        'default_config:'
-        ''
-        'http:'
-        '  use_x_forwarded_for: true'
-        '  trusted_proxies:'
-        '    - "127.0.0.1"'
-        '    - "::1"'
-        ''
-        'automation: !include automations.yaml'
-        'script: !include scripts.yaml'
-        'scene: !include scenes.yaml'
-        > /config/configuration.yaml;
-        printf '%s\n' '[]' > /config/automations.yaml;
-        printf '%s\n' '{}' > /config/scripts.yaml;
-        printf '%s\n' '[]' > /config/scenes.yaml;
-        echo "seeded /config/configuration.yaml"
+      - |
+        set -eu
+        mkdir -p /config/.storage
+
+        if [ -f /config/configuration.yaml ]; then
+          echo "configuration.yaml already present - leaving it alone"
+        else
+          cat > /config/configuration.yaml <<'YAML'
+        # Seeded by Rasputin when this app was installed.
+        #
+        # Home Assistant is reached through the node-local reverse proxy, which
+        # forwards your real client address in X-Forwarded-For. Home Assistant has
+        # to be told to trust that proxy or it answers every request with
+        # 400 Bad Request.
+        #
+        # Those trust settings are NOT in this file. Since 2026.8 they live in the
+        # store, and Rasputin seeded them there when it installed this app. Change
+        # them in the UI under Settings > System > Network, not here — an `http:`
+        # block added to this file is now ignored.
+
+        default_config:
+
+        automation: !include automations.yaml
+        script: !include scripts.yaml
+        scene: !include scenes.yaml
+        YAML
+          printf '%s\n' '[]' > /config/automations.yaml
+          printf '%s\n' '{}' > /config/scripts.yaml
+          printf '%s\n' '[]' > /config/scenes.yaml
+          echo "seeded /config/configuration.yaml"
+        fi
+
+        if [ -f /config/.storage/http ]; then
+          echo ".storage/http already present - leaving it alone"
+        else
+          # $$ is a literal $ — compose interpolates the compose file before the
+          # shell ever sees this script.
+          now="$$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')"
+          cat > /config/.storage/http <<JSON
+        {
+          "version": 2,
+          "minor_version": 2,
+          "key": "http",
+          "data": {
+            "stable": {
+              "server_port": 8123,
+              "use_x_forwarded_for": true,
+              "trusted_proxies": [
+                "127.0.0.1/32",
+                "::1/128"
+              ],
+              "login_attempts_threshold": -1,
+              "ip_ban_enabled": true,
+              "cors_allowed_origins": [
+                "https://cast.home-assistant.io"
+              ],
+              "ssl_profile": "modern",
+              "use_x_frame_options": true,
+              "created_at": "$$now",
+              "error": null,
+              "error_message": null
+            },
+            "pending": null,
+            "yaml_migration_done": true
+          }
+        }
+        JSON
+          chmod 600 /config/.storage/http
+          echo "seeded /config/.storage/http"
+        fi
     volumes:
       - homeassistant-config:/config
 
