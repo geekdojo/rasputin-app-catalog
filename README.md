@@ -60,6 +60,16 @@ exercised on real Pi 5 and N100 nodes by a person. Desk research does not qualif
 > trust in it and went back to `400` for good. Both earlier "passes" were checks that landed
 > inside that window. v13 seeds the setting where Home Assistant now keeps it and re-benched
 > with a check at T+19s **and** T+9m54s.
+>
+> **Validated through the published catalog, 2026-08-29.** That v13 re-bench ran from a
+> hand-applied compose, because an unmerged tile cannot reach a cluster — so it proved the fix and
+> not the delivery. Repeated from the signed release: `e3bench` fetched catalog v13, and the
+> compose that ran on an arm64 node hashes byte-identical to the one inside the signed
+> `catalog.json` asset (`2069bc0e…`), which itself matches the published artifact (`e4c9c1fe…`).
+> The app served its onboarding screen at **T+32s and again at T+8m51s**, past the five-minute
+> trial window, with the setting in Home Assistant's `stable` store, nothing pending, no revert in
+> its log and zero container restarts. **All sixteen tiles have now cleared the bench**, and this
+> one cleared it the way an owner would actually install it.
 
 **`ramFloorMB` today is upstream's documented minimum, cited — not a measured figure.** The bench
 proves a tile boots and serves its first page; it does not measure the tile's memory. Read the
