@@ -14,8 +14,11 @@
       "container": 8096,
       "published": 8096,
       "protocol": "tcp",
-      "primary": true
+      "web": true
     }
+  ],
+  "requires": [
+    "tile.web-port"
   ],
   "website": "https://github.com/jellyfin/jellyfin",
   "icon": "\ud83c\udfac",

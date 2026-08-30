@@ -1,9 +1,11 @@
 package corpus
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/geekdojo/rasputin-control-plane/tileschema"
@@ -162,6 +164,53 @@ func writeTile(t *testing.T, root, id, tileJSON, composeYAML string) {
 	if composeYAML != "" {
 		if err := os.WriteFile(filepath.Join(dir, ComposeFile), []byte(composeYAML), 0o644); err != nil {
 			t.Fatal(err)
+		}
+	}
+}
+
+// Every tile that uses the web-port field must NAME the capability that field
+// arrived with, or an older control plane misreads it in the worst possible
+// direction (#387/#388).
+//
+// The rename from `primary` to `web` is not additive, and Decision 7's
+// tolerance is what makes that dangerous: a reader that predates it ignores the
+// field it does not recognise, finds no primary, and — with the count now
+// relaxed to zero-or-one — concludes the app has no web page. Jellyfin would
+// load, install, and simply offer no way to open it. Naming tile.web-port turns
+// that silence into a refusal with a reason.
+//
+// The check is on the CORPUS rather than the schema on purpose: the validator
+// cannot require a capability (a tile is free not to use the field), so the only
+// place "we always declare what we depend on" can be enforced is here, over the
+// tiles we actually publish. Verified once by hand against the pre-rename
+// tileschema — every migrated tile came back "requires unknown capability
+// \"tile.web-port\"" — and this keeps the next tile honest.
+func TestShippedCorpus_DeclaresTheWebPortCapability(t *testing.T) {
+	ids, err := IDs(shippedCorpus)
+	if err != nil {
+		t.Fatalf("list corpus: %v", err)
+	}
+	if len(ids) == 0 {
+		t.Fatal("empty corpus")
+	}
+	for _, id := range ids {
+		raw, err := os.ReadFile(filepath.Join(shippedCorpus, id, "tile.json"))
+		if err != nil {
+			t.Fatalf("%s: %v", id, err)
+		}
+		var tile tileschema.Tile
+		if err := json.Unmarshal(raw, &tile); err != nil {
+			t.Fatalf("%s: %v", id, err)
+		}
+		if !slices.Contains(tile.Requires, tileschema.CapabilityWebPort) {
+			t.Errorf("tile %q does not require %q — an older control plane would read it as page-less instead of refusing it",
+				id, tileschema.CapabilityWebPort)
+		}
+		// And the raw JSON must not still carry the old field: a tile keeping
+		// `primary` alongside `web` would validate here and mean something
+		// different to every reader.
+		if bytes.Contains(raw, []byte(`"primary"`)) {
+			t.Errorf("tile %q still carries the retired \"primary\" field", id)
 		}
 	}
 }

@@ -14,8 +14,11 @@
       "container": 8080,
       "published": 8084,
       "protocol": "tcp",
-      "primary": true
+      "web": true
     }
+  ],
+  "requires": [
+    "tile.web-port"
   ],
   "website": "https://github.com/rommapp/romm",
   "icon": "\ud83d\udd79\ufe0f",

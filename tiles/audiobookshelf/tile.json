@@ -14,8 +14,11 @@
       "container": 80,
       "published": 13378,
       "protocol": "tcp",
-      "primary": true
+      "web": true
     }
+  ],
+  "requires": [
+    "tile.web-port"
   ],
   "website": "https://github.com/advplyr/audiobookshelf",
   "icon": "\ud83c\udfa7",

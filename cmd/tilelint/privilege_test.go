@@ -39,7 +39,7 @@ func baseTile(id string) tileschema.Tile {
 	return tileschema.Tile{
 		ID: id, Name: "Test", Tagline: "A tile", Collection: tileschema.CollectionEveryday,
 		Arch: "both", ExposureDefault: "lan-only", RAMFloorMB: 256,
-		Ports: []tileschema.Port{{Name: "web", Container: 80, Published: 8080, Primary: true}},
+		Ports: []tileschema.Port{{Name: "web", Container: 80, Published: 8080, Web: true}},
 	}
 }
 

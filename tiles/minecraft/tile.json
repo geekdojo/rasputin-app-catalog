@@ -13,11 +13,13 @@
       "name": "game",
       "container": 25565,
       "published": 25565,
-      "protocol": "tcp",
-      "primary": true
+      "protocol": "tcp"
     }
+  ],
+  "requires": [
+    "tile.web-port"
   ],
   "website": "https://github.com/itzg/docker-minecraft-server",
   "icon": "\u26cf\ufe0f",
-  "postInstall": "Point your Minecraft client at <node>.local:25565 to join."
+  "postInstall": "This one has no web page \u2014 you join it from the Minecraft client. Connect to <app>.<cluster-id>.internal on port 25565 over your tailnet, or <app>.lan.<cluster-id>.internal from your local network if you turned LAN access on. <app> is the name you gave this install; <cluster-id> is your cluster's id."
 }

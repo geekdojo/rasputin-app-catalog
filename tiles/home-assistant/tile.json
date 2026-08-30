@@ -15,11 +15,12 @@
       "container": 8123,
       "published": 8123,
       "protocol": "tcp",
-      "primary": true
+      "web": true
     }
   ],
   "requires": [
-    "privilege-tiers-v1"
+    "privilege-tiers-v1",
+    "tile.web-port"
   ],
   "privilege": {
     "tier": "elevated",
