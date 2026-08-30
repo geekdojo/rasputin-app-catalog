@@ -10,11 +10,18 @@ services:
       # start without this; accepting it here means the catalog accepts on the
       # owner's behalf at install time.
       EULA: "TRUE"
-      # NOTE: the IMAGE is digest-pinned, but VERSION=LATEST makes the image
-      # download whatever Minecraft server build is current at first run — so
-      # the game version is NOT pinned and two installs can differ. Pin it to a
-      # specific version before this tile goes available.
-      VERSION: "LATEST"
+      # The game version is pinned SEPARATELY from the image, and both are
+      # load-bearing. itzg/minecraft-server downloads the Minecraft server
+      # build at first run, so a digest-pinned image running VERSION=LATEST
+      # still hands two owners different servers a month apart — and a client
+      # cannot join a server it does not match, while a world opened by a newer
+      # build is not reliably readable by an older one.
+      #
+      # 26.2 is Mojang's current release (version_manifest_v2.json, released
+      # 2026-06-16). Raising this pin later changes a running install's server
+      # on its next deploy, against an existing world, so it is a deliberate
+      # act rather than routine maintenance.
+      VERSION: "26.2"
       TYPE: "VANILLA"
       MEMORY: "2G"
     volumes:
