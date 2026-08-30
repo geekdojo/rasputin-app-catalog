@@ -15,8 +15,11 @@
       "container": 2283,
       "published": 2283,
       "protocol": "tcp",
-      "primary": true
+      "web": true
     }
+  ],
+  "requires": [
+    "tile.web-port"
   ],
   "website": "https://github.com/immich-app/immich",
   "icon": "\ud83d\udcf8",

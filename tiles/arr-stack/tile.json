@@ -14,29 +14,29 @@
       "container": 8989,
       "published": 8989,
       "protocol": "tcp",
-      "primary": true
+      "web": true
     },
     {
       "name": "radarr",
       "container": 7878,
       "published": 7878,
-      "protocol": "tcp",
-      "primary": false
+      "protocol": "tcp"
     },
     {
       "name": "prowlarr",
       "container": 9696,
       "published": 9696,
-      "protocol": "tcp",
-      "primary": false
+      "protocol": "tcp"
     },
     {
       "name": "qbittorrent",
       "container": 8090,
       "published": 8090,
-      "protocol": "tcp",
-      "primary": false
+      "protocol": "tcp"
     }
+  ],
+  "requires": [
+    "tile.web-port"
   ],
   "website": "https://wiki.servarr.com",
   "icon": "\ud83c\udf9e\ufe0f",

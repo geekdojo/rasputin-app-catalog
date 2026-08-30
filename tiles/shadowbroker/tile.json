@@ -18,15 +18,17 @@
       "container": 3000,
       "published": 3200,
       "protocol": "tcp",
-      "primary": true
+      "web": true
     },
     {
       "name": "api",
       "container": 8000,
       "published": 8200,
-      "protocol": "tcp",
-      "primary": false
+      "protocol": "tcp"
     }
+  ],
+  "requires": [
+    "tile.web-port"
   ],
   "website": "https://github.com/bigbodycobain/shadowbroker",
   "icon": "\ud83d\udef0\ufe0f",

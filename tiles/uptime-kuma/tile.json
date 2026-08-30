@@ -14,8 +14,11 @@
       "container": 3001,
       "published": 3001,
       "protocol": "tcp",
-      "primary": true
+      "web": true
     }
+  ],
+  "requires": [
+    "tile.web-port"
   ],
   "website": "https://github.com/louislam/uptime-kuma",
   "icon": "\ud83d\udfe2",
