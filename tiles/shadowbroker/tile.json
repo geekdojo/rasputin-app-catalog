@@ -7,6 +7,7 @@
   "category": "data",
   "arch": "both",
   "ramFloorMB": 4096,
+  "deployBudgetSeconds": 1800,
   "needsFeedKey": [
     "OpenSky",
     "AISStream"
