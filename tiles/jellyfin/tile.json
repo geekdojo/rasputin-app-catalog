@@ -20,6 +20,23 @@
   "requires": [
     "tile.web-port"
   ],
+  "volumes": [
+    {
+      "name": "jellyfin-config",
+      "backup": "state",
+      "quiesce": "stop"
+    },
+    {
+      "name": "jellyfin-cache",
+      "backup": "cache",
+      "quiesce": "none"
+    },
+    {
+      "name": "jellyfin-media",
+      "backup": "bulk",
+      "quiesce": "none"
+    }
+  ],
   "website": "https://github.com/jellyfin/jellyfin",
   "icon": "\ud83c\udfac",
   "postInstall": "Open it to run the setup wizard: create your admin user and add a media library folder.",

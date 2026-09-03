@@ -20,6 +20,18 @@
   "requires": [
     "tile.web-port"
   ],
+  "volumes": [
+    {
+      "name": "freshrss-data",
+      "backup": "state",
+      "quiesce": "stop"
+    },
+    {
+      "name": "freshrss-extensions",
+      "backup": "state",
+      "quiesce": "stop"
+    }
+  ],
   "website": "https://freshrss.org",
   "icon": "\ud83d\udcf0",
   "postInstall": "Open it, create your account, and add a few feeds to get started."

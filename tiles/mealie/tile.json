@@ -20,6 +20,13 @@
   "requires": [
     "tile.web-port"
   ],
+  "volumes": [
+    {
+      "name": "mealie-data",
+      "backup": "state",
+      "quiesce": "stop"
+    }
+  ],
   "website": "https://github.com/mealie-recipes/mealie",
   "icon": "\ud83c\udf72",
   "postInstall": "Open it, create your account, and paste a recipe URL to import your first recipe."

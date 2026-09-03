@@ -52,6 +52,22 @@ Exactly two files, in `tiles/<id>/`:
 - `requires`: add `privilege-tiers-v1` whenever `privilege` is present. The linter's
   snippet includes it. It is what makes an older control plane refuse the tile instead
   of installing it with no consent prompt.
+- `volumes[]`: **one entry per named volume the compose creates**, each with a `backup`
+  class and a `quiesce` strategy. There is no default for either and the lint fails on a
+  volume you leave out, so classify them as you write the stack rather than afterwards.
+  - `backup`: `critical` (secrets, credentials, keys — always archived, not
+    disableable) | `state` (irreplaceable app state) | `cache` (regenerable index, queue
+    or model cache — **never archived**) | `bulk` (a user media library, opt-in).
+  - `quiesce`: `none` | `stop` | `sqlite` | `postgres` | `mysql`. **Answer `stop` unless
+    you have a reason not to.** Stopping the container is a stronger consistency
+    guarantee than a dump and needs no knowledge of the engine; a 3 a.m. outage of a
+    home app costs nothing. Use an engine dump only when downtime genuinely hurts —
+    the app breaks something else in the house while it is down — never just because
+    the volume holds a database. A `cache` volume must say `none`.
+  - **If you are torn between `cache` and `state`, write `state`.** A `cache` volume is
+    never copied, so guessing wrong there loses the data and nobody finds out until a
+    restore. Guessing wrong the other way only costs disk. Say in the PR body which
+    calls you were unsure about.
 
 ## Verify against primary sources, never marketing copy
 

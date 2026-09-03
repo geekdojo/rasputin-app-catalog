@@ -3,9 +3,11 @@ package corpus
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/geekdojo/rasputin-control-plane/tileschema"
@@ -212,5 +214,48 @@ func TestShippedCorpus_DeclaresTheWebPortCapability(t *testing.T) {
 		if bytes.Contains(raw, []byte(`"primary"`)) {
 			t.Errorf("tile %q still carries the retired \"primary\" field", id)
 		}
+	}
+}
+
+// The publish path refuses an unclassified corpus, not only the linter.
+//
+// b.Validate() at the end of BuildBundle catches a DECLARED volume with a
+// missing class, but it cannot catch a volume the stack creates and the tile
+// never named: the control plane parses no compose (ADR-0006 Decision 4), so
+// that fact never reaches it. If the coverage check lived only in cmd/tilelint,
+// a dispatch that skipped the lint could still sign and ship the corpus — and
+// the signature would make the hole look authoritative on the way out.
+func TestBuildBundle_RefusesAnUnclassifiedVolume(t *testing.T) {
+	const stack = `services:
+  app:
+    image: ghcr.io/example/app@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    volumes:
+      - app-data:/data
+volumes:
+  app-data:
+`
+	const meta = `{"id":"unclassified","name":"U","tagline":"t","description":"d",
+      "collection":"essentials","arch":"both","exposureDefault":"lan-only",
+      "ramFloorMB":256,"requires":["tile.web-port"],
+      "ports":[{"name":"web","container":80,"published":8080,"web":true}]%s}`
+
+	root := t.TempDir()
+	writeTile(t, root, "unclassified", fmt.Sprintf(meta, ""), stack)
+	_, err := BuildBundle(root, 1, "2026-08-20T00:00:00Z", "")
+	if err == nil {
+		t.Fatal("a corpus with an unclassified volume must not build a publishable bundle")
+	}
+	for _, want := range []string{"unclassified", "app-data", "refusing to publish"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal does not mention %q: %v", want, err)
+		}
+	}
+
+	// And the same corpus builds once the volume is classified — otherwise
+	// this test would pass for any reason at all.
+	classified := `,"volumes":[{"name":"app-data","backup":"state","quiesce":"stop"}]`
+	writeTile(t, root, "unclassified", fmt.Sprintf(meta, classified), stack)
+	if _, err := BuildBundle(root, 1, "2026-08-20T00:00:00Z", ""); err != nil {
+		t.Fatalf("the same corpus must build once the volume carries a class: %v", err)
 	}
 }

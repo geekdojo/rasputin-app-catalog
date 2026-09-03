@@ -31,6 +31,13 @@
   "requires": [
     "tile.web-port"
   ],
+  "volumes": [
+    {
+      "name": "shadowbroker-data",
+      "backup": "state",
+      "quiesce": "stop"
+    }
+  ],
   "website": "https://github.com/bigbodycobain/shadowbroker",
   "icon": "\ud83d\udef0\ufe0f",
   "postInstall": "Open it and add your OpenSky / AISStream keys in settings for full flight + ship coverage."

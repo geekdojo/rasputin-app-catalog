@@ -32,7 +32,7 @@ func main() {
 		only         = flag.String("tile", "", "validate a single tile by id")
 		failures     int
 		checked      int
-		privileged   int
+		notices      int
 		unverifiable int
 	)
 	flag.Parse()
@@ -48,7 +48,7 @@ func main() {
 			continue
 		}
 		checked++
-		problems, notices, unverified := checkTile(*root, id, *probe)
+		problems, tileNotices, unverified := checkTile(*root, id, *probe)
 		if unverified {
 			unverifiable++
 		}
@@ -59,9 +59,12 @@ func main() {
 		// Notices never fail the run. They exist because a privilege a tile
 		// takes is worth a human seeing even when policy permits it — and
 		// because the submission pipeline opens PRs a reviewer skims (#195).
-		for _, n := range notices {
+		// An anonymous volume mount joins them for the same reason: nothing
+		// can archive it, and no declaration the author could write would
+		// change that.
+		for _, n := range tileNotices {
 			fmt.Printf("  ! %-22s %s\n", id, n)
-			privileged++
+			notices++
 		}
 	}
 
@@ -69,7 +72,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "tilelint: no tile with id %q\n", *only)
 		os.Exit(2)
 	}
-	fmt.Printf("\n%d tile(s) checked, %d problem(s), %d privilege notice(s)\n", checked, failures, privileged)
+	fmt.Printf("\n%d tile(s) checked, %d problem(s), %d notice(s)\n", checked, failures, notices)
 	if unverifiable > 0 {
 		// Said once, plainly, rather than defaulted away. These tiles have no
 		// stack, so their privilege is not routine — it is uncomputed, and it
@@ -109,6 +112,17 @@ func checkTile(root, id string, probe bool) (problems, notices []string, unverif
 	if err != nil {
 		return append(problems, err.Error()), nil, false
 	}
+
+	// Volume coverage (storage.md §4.2). tileschema.ValidateTile above has
+	// already refused any DECLARED volume missing a class or a strategy; what
+	// it cannot see is a volume the stack creates and the tile never mentions,
+	// because the control plane holds no YAML parser (ADR-0006 Decision 4).
+	// That is the fail-open half, and this is the side that can close it.
+	stack, err := compose.Volumes([]byte(l.Compose))
+	if err != nil {
+		return append(problems, err.Error()), nil, false
+	}
+	problems = append(problems, compose.ClassificationProblems(tile, stack)...)
 	if err := tileschema.ValidateTileSafety(tile, facts); err != nil {
 		problems = append(problems, err.Error())
 		// The actionable half. Grant strings are a derived vocabulary, so
@@ -134,7 +148,7 @@ func checkTile(root, id string, probe bool) (problems, notices []string, unverif
 	if probe {
 		problems = append(problems, archProblems(tile, facts)...)
 	}
-	return problems, privilegeNotices(tile, facts), false
+	return problems, append(privilegeNotices(tile, facts), compose.AnonymousNotices(stack)...), false
 }
 
 // unverifiablePrivilege is what a PREVIEW tile with no compose gets.

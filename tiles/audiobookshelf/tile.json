@@ -20,6 +20,28 @@
   "requires": [
     "tile.web-port"
   ],
+  "volumes": [
+    {
+      "name": "abs-config",
+      "backup": "state",
+      "quiesce": "stop"
+    },
+    {
+      "name": "abs-metadata",
+      "backup": "state",
+      "quiesce": "stop"
+    },
+    {
+      "name": "abs-audiobooks",
+      "backup": "bulk",
+      "quiesce": "none"
+    },
+    {
+      "name": "abs-podcasts",
+      "backup": "bulk",
+      "quiesce": "none"
+    }
+  ],
   "website": "https://github.com/advplyr/audiobookshelf",
   "icon": "\ud83c\udfa7",
   "postInstall": "Open it, create your admin account, then add an audiobook or podcast library folder.",

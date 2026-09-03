@@ -20,6 +20,18 @@
   "requires": [
     "tile.web-port"
   ],
+  "volumes": [
+    {
+      "name": "karakeep-data",
+      "backup": "state",
+      "quiesce": "stop"
+    },
+    {
+      "name": "karakeep-meili",
+      "backup": "cache",
+      "quiesce": "none"
+    }
+  ],
   "website": "https://github.com/karakeep-app/karakeep",
   "icon": "\ud83d\udd16",
   "postInstall": "Open it, create your account; AI tagging needs the Ollama tile or an API key."
