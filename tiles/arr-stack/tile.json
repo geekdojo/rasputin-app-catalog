@@ -38,6 +38,33 @@
   "requires": [
     "tile.web-port"
   ],
+  "volumes": [
+    {
+      "name": "prowlarr-config",
+      "backup": "state",
+      "quiesce": "stop"
+    },
+    {
+      "name": "sonarr-config",
+      "backup": "state",
+      "quiesce": "stop"
+    },
+    {
+      "name": "radarr-config",
+      "backup": "state",
+      "quiesce": "stop"
+    },
+    {
+      "name": "qbittorrent-config",
+      "backup": "state",
+      "quiesce": "stop"
+    },
+    {
+      "name": "arr-media",
+      "backup": "bulk",
+      "quiesce": "none"
+    }
+  ],
   "website": "https://wiki.servarr.com",
   "icon": "\ud83c\udf9e\ufe0f",
   "postInstall": "Configure your indexers in Prowlarr and connect qBittorrent \u2014 set up a VPN before you do."

@@ -29,6 +29,13 @@
     ],
     "why": "Home Assistant shares your LAN directly so it can discover your devices; without that it still runs, but finds almost nothing to control."
   },
+  "volumes": [
+    {
+      "name": "homeassistant-config",
+      "backup": "state",
+      "quiesce": "sqlite"
+    }
+  ],
   "website": "https://www.home-assistant.io",
   "icon": "\ud83c\udfe0",
   "postInstall": "Open it and follow the onboarding wizard to create your account and add your first devices."

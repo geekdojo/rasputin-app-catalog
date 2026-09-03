@@ -20,6 +20,33 @@
   "requires": [
     "tile.web-port"
   ],
+  "volumes": [
+    {
+      "name": "romm-config",
+      "backup": "state",
+      "quiesce": "stop"
+    },
+    {
+      "name": "romm-db",
+      "backup": "state",
+      "quiesce": "stop"
+    },
+    {
+      "name": "romm-resources",
+      "backup": "state",
+      "quiesce": "stop"
+    },
+    {
+      "name": "romm-assets",
+      "backup": "state",
+      "quiesce": "stop"
+    },
+    {
+      "name": "romm-library",
+      "backup": "bulk",
+      "quiesce": "none"
+    }
+  ],
   "website": "https://github.com/rommapp/romm",
   "icon": "\ud83d\udd79\ufe0f",
   "postInstall": "Open it, create your account, and point it at your ROMs folder."

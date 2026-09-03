@@ -20,6 +20,18 @@
   "requires": [
     "tile.web-port"
   ],
+  "volumes": [
+    {
+      "name": "navidrome-data",
+      "backup": "state",
+      "quiesce": "stop"
+    },
+    {
+      "name": "navidrome-music",
+      "backup": "bulk",
+      "quiesce": "none"
+    }
+  ],
   "website": "https://github.com/navidrome/navidrome",
   "icon": "\ud83c\udfb5",
   "postInstall": "Open it and create your admin account, then point it at your music folder.",

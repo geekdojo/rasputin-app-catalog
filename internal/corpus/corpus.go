@@ -120,6 +120,22 @@ func BuildBundle(root string, version int, publishedAt, source string) (tilesche
 				return tileschema.Bundle{}, fmt.Errorf("tile %q: %w", id, err)
 			}
 			bt.Safety = facts
+
+			// Volume coverage, enforced on the PUBLISH path and not only in
+			// the linter. b.Validate() below refuses a declared volume with a
+			// missing class, but it cannot see a volume the stack creates and
+			// the tile never named — the control plane parses no YAML
+			// (Decision 4), so that fact does not survive into the bundle for
+			// it to check. If this were left to tilelint alone, a corpus that
+			// fails the lint could still be signed and shipped by a dispatch
+			// that skipped it, and the signature would make it authoritative.
+			stack, err := compose.Volumes([]byte(l.Compose))
+			if err != nil {
+				return tileschema.Bundle{}, fmt.Errorf("tile %q: %w", id, err)
+			}
+			if problems := compose.ClassificationProblems(l.Tile, stack); len(problems) > 0 {
+				return tileschema.Bundle{}, fmt.Errorf("tile %q: refusing to publish an unclassified corpus: %s", id, problems[0])
+			}
 		}
 		tiles = append(tiles, bt)
 	}

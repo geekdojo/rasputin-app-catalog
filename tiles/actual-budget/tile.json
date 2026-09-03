@@ -20,6 +20,13 @@
   "requires": [
     "tile.web-port"
   ],
+  "volumes": [
+    {
+      "name": "actual-data",
+      "backup": "state",
+      "quiesce": "stop"
+    }
+  ],
   "website": "https://actualbudget.org",
   "icon": "\ud83d\udcb0",
   "postInstall": "Open it and create your budget file \u2014 everything stays local."
