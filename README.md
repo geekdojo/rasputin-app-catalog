@@ -168,51 +168,6 @@ Those safety facts are **derived here at publish time** and carried in the signe
 The control plane never parses compose — it validates the derived facts, which the bundle
 signature makes exactly as trustworthy as the compose they came from.
 
-### Volumes: every one classified, no default
-
-Every named volume a tile's stack creates must say two things about itself, and there is **no
-default for either** — an absent field is a refusal, not an inference (design `storage.md` §4.2).
-
-```json
-"volumes": [
-  { "name": "vaultwarden-data", "backup": "critical", "quiesce": "stop" },
-  { "name": "jellyfin-cache",   "backup": "cache",    "quiesce": "none" },
-  { "name": "jellyfin-media",   "backup": "bulk",     "quiesce": "none" }
-]
-```
-
-`backup` is what losing the volume costs:
-
-| Class | What it holds | Backed up |
-|---|---|---|
-| `critical` | Secrets, credentials, keys — data whose *staleness* is itself harmful | Always; the owner cannot turn it off |
-| `state` | Irreplaceable app state | Always by default; the owner may exclude it |
-| `cache` | A regenerable index, queue or model cache | **Never** |
-| `bulk` | A user media library, potentially terabytes | Opt-in per app |
-
-`quiesce` is what it takes to copy it consistently: `none` (a plain copy is safe), `stop` (stop the
-service, copy, restart), or the engine-aware dumps `sqlite`, `postgres` and `mysql`.
-
-Two rules of thumb, both worth more than they look:
-
-- **`stop` is the normal answer and a dump is the exception.** Stopping the container gives
-  clean-shutdown consistency for free, which is a *stronger* guarantee than a dump and needs the
-  agent to know nothing about the engine. For a weekly 3 a.m. job on a home appliance a brief
-  outage costs nothing. Reach for `sqlite`/`postgres`/`mysql` only when downtime is genuinely
-  harmful — an app whose outage breaks something else in the house — and not merely because the
-  volume happens to hold a database.
-- **When torn between `cache` and `state`, choose `state`.** A `cache` volume is never copied at
-  all, so a volume misfiled as one is a volume nobody discovers was missing until a restore. An
-  over-large archive is recoverable; a missing one is not.
-
-The one cross-field rule: a `cache` volume must declare `quiesce: none`, because a strategy on a
-volume that is never copied describes work that never runs.
-
-`tilelint` fails on any volume the compose creates that `tile.json` does not classify, and prints
-the line to paste. It checks the reverse too — a classification naming a volume the stack no longer
-creates is dead metadata that reads like coverage. `catalogbundle` enforces the same rule on the
-publish path, so a corpus that cannot be linted cannot be signed either.
-
 ## Linting a tile
 
 ```
@@ -283,6 +238,13 @@ template and the agent-assisted drafting pipeline have landed too — see **Requ
 Until the publish pipeline exists, `rasputin-control-plane` keeps its own copy of `tiles/` as the
 shipping catalog. **This repo is the authoring home; that copy is a temporary duplicate** and is
 removed once the control plane pins a published catalog release.
+
+## AI-assisted development
+
+This project is developed by a human maintainer working with AI coding assistants;
+AI-assisted commits carry `Co-Authored-By` trailers naming the model. Per-process levels:
+[AI-DECLARATION.md](AI-DECLARATION.md). Approach, accountability, and provenance:
+[AI_DISCLOSURE.md](AI_DISCLOSURE.md).
 
 ## License
 
