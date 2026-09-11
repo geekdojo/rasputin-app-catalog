@@ -2,7 +2,7 @@
   "id": "human-system",
   "name": "Human System",
   "tagline": "Your whole health as one longitudinal picture.",
-  "description": "Biomarkers, interventions and the alerts that fall out of the two together, arrayed around a single anatomical figure. Self-hosted, single-user, and never sends your records anywhere.",
+  "description": "Biomarkers, interventions and the alerts that fall out of the two together, arrayed around a single anatomical figure. Self-hosted and single-user. Your records stay on your server; the only thing that leaves is a document you choose to send to Anthropic for extraction, using your own API key.",
   "collection": "everyday",
   "category": "data",
   "arch": "both",
