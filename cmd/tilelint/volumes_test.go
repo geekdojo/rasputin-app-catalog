@@ -135,7 +135,9 @@ func TestLint_AnonymousVolumeIsANoticeNotAProblem(t *testing.T) {
 // one says how much classified storage the catalog is expected to describe, so
 // a drop shows up as a diff to a number a reviewer has to agree with.
 func TestShippedCorpusClassifiesEveryVolume(t *testing.T) {
-	const wantVolumes = 35
+	// 35 until human-system joined with three: hs-db and hs-secrets
+	// (critical) and hs-data (state).
+	const wantVolumes = 38
 
 	root := filepath.Join("..", "..", "tiles")
 	ids, err := corpus.IDs(root)

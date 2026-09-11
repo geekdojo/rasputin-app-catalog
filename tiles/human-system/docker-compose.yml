@@ -1,0 +1,223 @@
+# Rasputin app-catalog tile — the compose half.
+#
+# THIS FILE IS NOT RUN BY `docker compose` FROM THIS REPO IN NORMAL USE. It is
+# the stack a Rasputin control plane deploys. The standalone stack is
+# deploy/docker-compose.yml. deploy/test-tile-secrets.sh does run THIS file, on a
+# throwaway project, to prove the secret handling below end to end.
+#
+#   * `ghcr.io/geekdojo/human-system@sha256:e8dd0e6067314b9089de4abcd52090a5dbfa7c2cb15f0769a3f434daf11db42b` is substituted by .github/workflows/release.yml with the
+#     digest of the image that release actually pushed. A catalog tile MUST be
+#     digest-pinned: tileschema.validateImagePin refuses a tag reference however
+#     specific the tag looks, because a tag stays mutable at the registry.
+#
+# On adoption this file is copied into a catalog repo as
+# `tiles/human-system/docker-compose.yml`, beside `tile.json`. See docs/DEPLOY.md.
+#
+# The tile is `status: available` (2026-09-10), so a control plane installs this
+# stack, and tools/tilecheck validates the manifest together with it. The §4.4
+# restore round-trip of hs-db + hs-secrets is still owed before it should ship
+# to anyone: docs/DEPLOY.md §B4.
+#
+# ---------------------------------------------------------------------------
+# SECRETS ARE GENERATED AND OWNED BY THE APP, not the platform (2026-09-10).
+# ---------------------------------------------------------------------------
+# There are two, and this stack makes them itself on first start:
+#
+#   app-secret-key  HS_SECRET_KEY. It encrypts the stored Anthropic API key and
+#                   keys the CSRF HMAC. It does NOT encrypt the medical history,
+#                   which is plain rows in hs-db. Lost, it costs a re-entered
+#                   API key and a fresh sign-in.
+#   db-password     The Postgres password. Both containers must agree on it
+#                   BEFORE either starts, and Postgres reads it only at initdb.
+#                   Lost, it locks the app out of its own database.
+#
+# `secrets-init` is a one-shot service that writes any missing secret into the
+# dedicated `hs-secrets` volume and exits 0; `app` and `db` wait for it with
+# `service_completed_successfully`. It NEVER overwrites an existing secret, and it
+# REFUSES to generate a db-password over a database volume that is already in
+# use. Why a dedicated volume and not hs-db, what happens when a file is lost,
+# and how to recover: docs/DEPLOY.md §B5 and docs/SPEC.md §12.5.
+#
+# This used to rely on Rasputin substituting `${secret:<name>}` (ADR-0006
+# Decision 11a) and declared the `tile.secrets` capability for it. No control
+# plane implements that, so every one refused this tile. It no longer names it.
+# ---------------------------------------------------------------------------
+
+services:
+  secrets-init:
+    image: ghcr.io/geekdojo/human-system@sha256:e8dd0e6067314b9089de4abcd52090a5dbfa7c2cb15f0769a3f434daf11db42b
+    # Runs once per `up` and exits. `restart: "no"` is what makes it a one-shot:
+    # anything else would restart it after its successful exit, forever.
+    restart: "no"
+    command:
+      - secrets
+      - init
+      - --dir
+      - /run/hs-secrets
+      # The database volume, read-only, so the generator can tell a fresh install
+      # from an initialised database and refuse to mint a password for the latter.
+      - --pgdata
+      - /run/hs-db
+      # The consumers' ids, read from the images, not assumed:
+      #   65532:65532  `nonroot` in gcr.io/distroless/static-debian12, the app's USER
+      #   70           gid of `postgres` in postgres:16-alpine (uid 70, gid 70)
+      # app-secret-key -> 65532:65532 0400 (the app alone)
+      # db-password    -> 65532:70    0440 (the app, and Postgres through its group)
+      # the directory  -> root 0711   (open-by-name for both, listable by neither)
+      - --app-uid
+      - "65532"
+      - --app-gid
+      - "65532"
+      - --db-gid
+      - "70"
+    # Root, because giving a file to a DIFFERENT user needs CAP_CHOWN, and
+    # reading inside Postgres's 0700 data directory needs DAC_OVERRIDE. Neither
+    # is added: both are in the runtime's default set for root, and every OTHER
+    # default capability is dropped below. `cap_add` and `group_add` would each
+    # raise this tile's privilege tier to `elevated`; `user` and `cap_drop` are
+    # not privilege grants (tileschema DerivePrivilege).
+    user: "0:0"
+    cap_drop:
+      - AUDIT_WRITE
+      - FSETID
+      - KILL
+      - MKNOD
+      - NET_BIND_SERVICE
+      - NET_RAW
+      - SETFCAP
+      - SETGID
+      - SETPCAP
+      - SETUID
+      - SYS_CHROOT
+    # Needs no network at all; `none` is not a namespace join.
+    network_mode: none
+    read_only: true
+    # The image's HEALTHCHECK probes the web server, which this never starts.
+    healthcheck:
+      disable: true
+    volumes:
+      - hs-secrets:/run/hs-secrets
+      - hs-db:/run/hs-db:ro
+    security_opt:
+      - no-new-privileges:true
+
+  app:
+    image: ghcr.io/geekdojo/human-system@sha256:e8dd0e6067314b9089de4abcd52090a5dbfa7c2cb15f0769a3f434daf11db42b
+    restart: unless-stopped
+
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+
+    environment:
+      # No password in the URL: it is read from the file below and placed into
+      # the DSN by the app. Were a password ALSO put here, the two would have to
+      # agree or the app refuses to start — see SPEC §10.
+      HS_DATABASE_URL: "postgres://hs@db:5432/human_system?sslmode=disable"
+      HS_DATABASE_PASSWORD_FILE: "/run/hs-secrets/db-password"
+      HS_SECRET_KEY_FILE: "/run/hs-secrets/app-secret-key"
+      # MCP write tools stay off in the tile. The generator could mint a token,
+      # but a token nobody can read is a token nobody can use, so this is left
+      # unset and the operator supplies one when they want agent writes
+      # (SPEC §12.8).
+      HS_MCP_TOKEN: ""
+      # THE ORIGIN IS OWNED BY THE APP, not supplied at install (2026-09-10).
+      #
+      # There is deliberately no HS_ORIGIN here. Its only consumer is WebAuthn
+      # (passkeys); CSRF never reads it. The node's Caddy reaches this app at
+      # one or both of these names, and passes the name through as `Host`:
+      #
+      #   https://human-system.<cluster-id>.internal       always (tailnet)
+      #   https://human-system.lan.<cluster-id>.internal   when LAN exposure is on
+      #
+      # <cluster-id> is the cluster's id, or `rasputin` on an unnamed cluster.
+      # HS_ORIGIN_FROM_PROXY tells the app to read its origin from that Host,
+      # accept ONLY those two shapes, and treat each as its own passkey relying
+      # party: the RP ID is the name the request arrived on, so a passkey made
+      # on one name works on that name only (SPEC §12.6). It is
+      # safe here, and only here, because of the loopback binding in `ports:`
+      # below: nothing but the node's own Caddy can send this app a Host. An
+      # explicit HS_ORIGIN, if one is ever added, wins. docs/DEPLOY.md §B2.
+      HS_ORIGIN_FROM_PROXY: "true"
+      HS_LISTEN: ":8080"
+      # Every route into this tile is https, terminated by the node's Caddy, so
+      # the session cookie is marked Secure. (The leg from Caddy to this
+      # container is plain http on loopback; the browser never sees it.)
+      HS_SECURE_COOKIES: "true"
+      # No HS_CATALOG_TOKEN, deliberately: the tile has no way to be handed
+      # one, and a public catalog does not need one. The app fetches the
+      # release anonymously; the catalog repository is public. Were it ever
+      # private again, that fetch would be refused and Settings would say so
+      # ("not reachable without a token; the repository may be private").
+      # docs/DEPLOY.md §B6.
+      HS_CATALOG_REPO: "geekdojo/human-system-substance-catalog"
+      HS_DATA_DIR: "/data"
+      HS_SEED_DEMO: "false"
+
+    # LOOPBACK ONLY. The node's Caddy dials 127.0.0.1:8085, so the proxy is
+    # unaffected. Published on every interface, anyone on the LAN could reach
+    # the app at <node-ip>:8085, skip the proxy, and send any Host they like —
+    # and HS_ORIGIN_FROM_PROXY above reads the origin from that Host. Bound to
+    # 127.0.0.1, only this node can connect. (Rasputin enforcing loopback for
+    # every tile is tracked as geekdojo/geekdojo-brain#404.)
+    ports:
+      - "127.0.0.1:8085:8080"
+
+    volumes:
+      # Named volumes, not bind mounts: named volumes are rooted on the node's
+      # `persistent` partition and survive a RAUC A/B OS update by construction.
+      - hs-data:/data
+      - hs-secrets:/run/hs-secrets:ro
+
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck", "-url", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 3s
+      start_period: 20s
+      retries: 5
+
+    security_opt:
+      - no-new-privileges:true
+
+  db:
+    # postgres:16-alpine, index digest resolved 2026-08-23. Renovate/Dependabot
+    # keeps this current; it is re-pinned by hand only if that automation lapses.
+    image: postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+    restart: unless-stopped
+
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
+
+    environment:
+      POSTGRES_USER: "hs"
+      # The image's own file_env convention. The entrypoint reads this once as
+      # root and again after dropping to `postgres` (uid 70), which is why the
+      # file is group-readable by gid 70 and not root-only. Only initdb uses it;
+      # an initialised database ignores it.
+      POSTGRES_PASSWORD_FILE: "/run/hs-secrets/db-password"
+      POSTGRES_DB: "human_system"
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+
+    volumes:
+      - hs-db:/var/lib/postgresql/data
+      - hs-secrets:/run/hs-secrets:ro
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hs -d human_system"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  hs-data:
+  hs-db:
+  # The two generated secrets, and nothing else. Its own volume rather than a
+  # subdirectory of hs-db: docs/DEPLOY.md §B5 has the reasoning.
+  hs-secrets:
