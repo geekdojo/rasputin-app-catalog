@@ -27,15 +27,19 @@ name: catalog-release
 #
 # The channel is the GitHub prerelease flag and nothing else (ADR-0006
 # Decision 9). The bundle carries no channel field, and the control plane's
-# fetch picks dev or stable on that flag alone. A push to main publishes
-# catalog-v<VERSION> as a prerelease, which is the dev channel.
+# fetch reads that flag alone. A stable cluster takes full releases only. A
+# dev cluster takes the highest catalog-vN of either kind, prerelease or full,
+# from a control-plane build that includes rasputin-control-plane#269 onward;
+# on an older build it takes prereleases only. A push to main publishes
+# catalog-v<VERSION> as a prerelease, so a new version reaches dev only.
 #
 # To promote a version that dev has already tested, flip the flag on the
 # release that already exists:
 #
 #   gh release edit catalog-vN --prerelease=false
 #
-# That ships the tested, signed bytes unchanged. A channel=stable dispatch of
+# That makes it a full release, which both channels take, and ships the
+# tested, signed bytes unchanged. A channel=stable dispatch of
 # this workflow cannot do it. The gate below compares VERSION against every
 # published catalog-v* tag, prerelease or not, and dev always publishes the
 # number first on merge, so the dispatch fails with "Bump VERSION in a PR".
@@ -43,11 +47,14 @@ name: catalog-release
 # holds at that moment, not the one dev tested. A channel=stable dispatch is
 # only for publishing a VERSION that is not yet published straight to stable.
 #
-# Promoting has two side effects: GitHub marks the release "Latest" even when
-# make_latest=false is sent (nothing reads that marker), and a dev cluster
-# that has not yet fetched the promoted version falls back to the highest
-# remaining prerelease until the next corpus merge publishes a newer one.
-# ADR-0006's 2026-09-11 note under Decision 9 has the details.
+# Promoting marks the release "Latest" on GitHub even when make_latest=false
+# is sent (nothing reads that marker). It does not take the version away from
+# dev, because dev takes full releases too. The exception is a cluster on a
+# control-plane build that predates rasputin-control-plane#269: there, a dev
+# cluster that has not yet fetched the promoted version falls back to the
+# highest remaining prerelease until the next corpus merge publishes a newer
+# one. ADR-0006's 2026-09-11 note and amendment under Decision 9 have the
+# details.
 on:
   push:
     branches: [main]

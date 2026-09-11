@@ -238,11 +238,14 @@ catalog release when it raises `VERSION`**, which every change under `tiles/` mu
 **Catalog version** above). A merge that touches neither `tiles/` nor `VERSION`, such as a docs or
 workflow change, publishes nothing: the publish job logs "Nothing to publish" and passes.
 
-A new release goes out as a GitHub prerelease, which is the dev channel. `catalog-v18`, promoted on
-2026-09-11, was the first release on the stable channel. Promotion is a flag flip on a release that
-already exists, so stable receives the same signed bytes dev already had; it is not a new publish.
-The procedure and its side effects are in the header of
-[`.github/workflows/release.yml`](.github/workflows/release.yml).
+A new release goes out as a GitHub prerelease, so it reaches dev clusters only. `catalog-v18`,
+promoted on 2026-09-11, was the first release on the stable channel. Promotion is a flag flip on a
+release that already exists. It turns the release into a full release, which both channels take, so
+stable receives the same signed bytes dev already had; it is not a new publish. A dev cluster takes
+the highest catalog version of either kind, prerelease or full, from a control-plane build that
+includes [rasputin-control-plane#269](https://github.com/geekdojo/rasputin-control-plane/pull/269)
+onward. On an older build, a dev cluster takes prereleases only. The procedure and its side effects
+are in the header of [`.github/workflows/release.yml`](.github/workflows/release.yml).
 
 Bundles are signed with a dedicated app-catalog leaf under Geekdojo's IANA PEN 66587, carrying a
 catalog-only EKU — that leaf cannot sign an OS or firmware artifact even though it shares the trust
