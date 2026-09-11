@@ -220,10 +220,12 @@ clears the bench, and no part of this pipeline can grant `available`.
 
 This repo is being stood up incrementally. Still to land:
 
-- the hardware bench itself, for 13 of the 18 tiles — which are already `available`, so this is
-  a debt against shipped tiles rather than a gate in front of them. It is a person's job and stays
-  that way; the E19 pipeline will not be automating it. Proving a published arm64 image really
-  executes on a Pi is the one piece worth automating later; that is deferred, not dropped.
+- a hardware bench run for `human-system`. It is already `available` and no bench run for it is
+  recorded, so this is a debt against a shipped tile rather than a gate in front of it. The bench
+  runs recorded for the other tiles, and what each one checked, are under **Tile status** above.
+  The bench is a person's job and stays that way; the E19 pipeline will not be automating it.
+  Proving a published arm64 image really executes on a Pi is the one piece worth automating
+  later; that is deferred, not dropped.
 - the four `dongle` tiles were removed rather than authored: ADS-B Ultrafeeder, AIS-catcher,
   rtl_433 and WeeWX all need a USB SDR passed into a container, and that passthrough design is
   still an open question. They come back when it is answered.
