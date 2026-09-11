@@ -8,7 +8,8 @@ name: catalog-release
 # `build` runs on every push to main and every PR. It proves the bundle path
 # continuously and needs no secrets.
 #
-# `publish` runs on push to main and on manual dispatch. It was dispatch-only
+# `publish` runs on push to main and on a manual dispatch FROM MAIN. A dispatch
+# from any other branch runs `build` and skips `publish`. It was dispatch-only
 # until 2026-08-21, while the catalog signing leaf did not exist — it needed an
 # EKU under a real IANA PEN. PEN 66587 was assigned 2026-08-20 and
 # catalog-leaf-001 is now in this repo's secrets, so a merge to main publishes.
@@ -54,7 +55,7 @@ on:
   workflow_dispatch:
     inputs:
       channel:
-        description: "Channel for a VERSION not yet published. dev publishes as a prerelease. This cannot promote a published version: run gh release edit catalog-vN --prerelease=false instead (see the header)."
+        description: "Channel for a VERSION not yet published. dev publishes as a prerelease. Publishes only when run from main. This cannot promote a published version: run gh release edit catalog-vN --prerelease=false instead (see the header)."
         type: choice
         options: [dev, stable]
         default: dev
@@ -109,8 +110,12 @@ jobs:
 
   publish:
     # Only from main. A PR must never publish: its head is untrusted content by
-    # definition, and this job holds the signing key.
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    # definition, and this job holds the signing key. The event check alone
+    # did not say "main": a dispatch runs on whichever branch the dispatcher
+    # picks, so an unreviewed branch could be signed and published. The ref
+    # check closes that. A push reaches this job only from main (see `on:`),
+    # and a pull_request run fails the event check whatever its ref.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs: build
     runs-on: ubuntu-latest
     permissions:
