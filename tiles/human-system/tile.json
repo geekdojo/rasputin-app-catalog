@@ -1,0 +1,44 @@
+{
+  "id": "human-system",
+  "name": "Human System",
+  "tagline": "Your whole health as one longitudinal picture.",
+  "description": "Biomarkers, interventions and the alerts that fall out of the two together, arrayed around a single anatomical figure. Self-hosted, single-user, and never sends your records anywhere.",
+  "collection": "everyday",
+  "category": "data",
+  "arch": "both",
+  "placementHint": "any",
+  "ramFloorMB": 1024,
+  "exposureDefault": "lan-only",
+  "status": "available",
+  "ports": [
+    {
+      "name": "web",
+      "container": 8080,
+      "published": 8085,
+      "protocol": "tcp",
+      "web": true
+    }
+  ],
+  "volumes": [
+    {
+      "name": "hs-db",
+      "backup": "critical",
+      "quiesce": "stop"
+    },
+    {
+      "name": "hs-data",
+      "backup": "state",
+      "quiesce": "stop"
+    },
+    {
+      "name": "hs-secrets",
+      "backup": "critical",
+      "quiesce": "stop"
+    }
+  ],
+  "requires": [
+    "tile.web-port"
+  ],
+  "icon": "🧬",
+  "postInstall": "Open it and create your account on the first-run screen. Then bring your history in: the Import screen takes a bulk-import file, whose format the app itself serves at /.well-known/hs-import-schema.json, and the Documents screen takes lab reports."
+}

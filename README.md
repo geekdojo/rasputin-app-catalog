@@ -75,8 +75,11 @@ exercised on real Pi 5 and N100 nodes by a person. Desk research does not qualif
 proves a tile boots and serves its first page; it does not measure the tile's memory. Read the
 badge as the vendor's floor, and not as a number we have observed.
 
-Today: **16 tiles — 16 available, 0 preview, all sixteen bench-passed.** Every tile has been
-installed on real hardware and had its URL checked for the app's expected first page.
+Today: **17 tiles — 17 available, 0 preview, sixteen bench-passed.** Those sixteen have each been
+installed on real hardware and had their URL checked for the app's expected first page.
+`human-system` was added as `available` on Bryce's call. No bench run for it is recorded here, and
+its storage.md §4.4 restore round-trip, owed because two of its volumes are `critical`, has not run
+yet either.
 
 ## Catalog version
 
