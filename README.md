@@ -220,10 +220,12 @@ clears the bench, and no part of this pipeline can grant `available`.
 
 This repo is being stood up incrementally. Still to land:
 
-- the hardware bench itself, for 13 of the 18 tiles — which are already `available`, so this is
-  a debt against shipped tiles rather than a gate in front of them. It is a person's job and stays
-  that way; the E19 pipeline will not be automating it. Proving a published arm64 image really
-  executes on a Pi is the one piece worth automating later; that is deferred, not dropped.
+- a hardware bench run for `human-system`. It is already `available` and no bench run for it is
+  recorded, so this is a debt against a shipped tile rather than a gate in front of it. The bench
+  runs recorded for the other tiles, and what each one checked, are under **Tile status** above.
+  The bench is a person's job and stays that way; the E19 pipeline will not be automating it.
+  Proving a published arm64 image really executes on a Pi is the one piece worth automating
+  later; that is deferred, not dropped.
 - the four `dongle` tiles were removed rather than authored: ADS-B Ultrafeeder, AIS-catcher,
   rtl_433 and WeeWX all need a USB SDR passed into a container, and that passthrough design is
   still an open question. They come back when it is answered.
@@ -231,16 +233,24 @@ This repo is being stood up incrementally. Still to land:
   dependencies, including a CRITICAL, is not a supply chain we want to hand somebody. It comes
   back if upstream clears them.
 
-The signed bundle and its publish pipeline are live: **every merge to `main` publishes a new
-signed catalog release.** Bundles are signed with a dedicated app-catalog leaf under Geekdojo's
-IANA PEN 66587, carrying a catalog-only EKU — that leaf cannot sign an OS or firmware artifact
-even though it shares the trust root. The control plane fetches and verifies that bundle on a
-24-hour poll and refuses anything older than the catalog it already holds. The app-request intake
-template and the agent-assisted drafting pipeline have landed too — see **Requesting an app** above.
+The signed bundle and its publish pipeline are live. **A merge to `main` publishes a new signed
+catalog release when it raises `VERSION`**, which every change under `tiles/` must do (see
+**Catalog version** above). A merge that touches neither `tiles/` nor `VERSION`, such as a docs or
+workflow change, publishes nothing: the publish job logs "Nothing to publish" and passes.
 
-Until the publish pipeline exists, `rasputin-control-plane` keeps its own copy of `tiles/` as the
-shipping catalog. **This repo is the authoring home; that copy is a temporary duplicate** and is
-removed once the control plane pins a published catalog release.
+A new release goes out as a GitHub prerelease, which is the dev channel. `catalog-v18`, promoted on
+2026-09-11, was the first release on the stable channel. Promotion is a flag flip on a release that
+already exists, so stable receives the same signed bytes dev already had; it is not a new publish.
+The procedure and its side effects are in the header of
+[`.github/workflows/release.yml`](.github/workflows/release.yml).
+
+Bundles are signed with a dedicated app-catalog leaf under Geekdojo's IANA PEN 66587, carrying a
+catalog-only EKU — that leaf cannot sign an OS or firmware artifact even though it shares the trust
+root. The control plane fetches and verifies the newest bundle on its own channel on a 24-hour
+poll, and refuses anything older than the catalog it already holds. Until a cluster completes its
+first verified fetch, it runs the catalog embedded in its image: a published catalog release,
+pinned when that image was cut (ADR-0006 Decision 6). The app-request intake template and the
+agent-assisted drafting pipeline have landed too — see **Requesting an app** above.
 
 ## AI-assisted development
 
