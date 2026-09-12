@@ -5,7 +5,7 @@
 # deploy/docker-compose.yml. deploy/test-tile-secrets.sh does run THIS file, on a
 # throwaway project, to prove the secret handling below end to end.
 #
-#   * `ghcr.io/geekdojo/human-system@sha256:281db4b9e58c29d93ffa2d422c08cc5f0633f0273cdf4d2a04112b102e2532f0` is substituted by .github/workflows/release.yml with the
+#   * `ghcr.io/geekdojo/human-system@sha256:b898f22a63509b1fb8cfc33e185163a4a3aae37e34e9757d21fbd60aeaa61dcd` is substituted by .github/workflows/release.yml with the
 #     digest of the image that release actually pushed. A catalog tile MUST be
 #     digest-pinned: tileschema.validateImagePin refuses a tag reference however
 #     specific the tag looks, because a tag stays mutable at the registry.
@@ -45,7 +45,7 @@
 
 services:
   secrets-init:
-    image: ghcr.io/geekdojo/human-system@sha256:281db4b9e58c29d93ffa2d422c08cc5f0633f0273cdf4d2a04112b102e2532f0
+    image: ghcr.io/geekdojo/human-system@sha256:b898f22a63509b1fb8cfc33e185163a4a3aae37e34e9757d21fbd60aeaa61dcd
     # Runs once per `up` and exits. `restart: "no"` is what makes it a one-shot:
     # anything else would restart it after its successful exit, forever.
     restart: "no"
@@ -102,7 +102,7 @@ services:
       - no-new-privileges:true
 
   app:
-    image: ghcr.io/geekdojo/human-system@sha256:281db4b9e58c29d93ffa2d422c08cc5f0633f0273cdf4d2a04112b102e2532f0
+    image: ghcr.io/geekdojo/human-system@sha256:b898f22a63509b1fb8cfc33e185163a4a3aae37e34e9757d21fbd60aeaa61dcd
     restart: unless-stopped
 
     depends_on:
