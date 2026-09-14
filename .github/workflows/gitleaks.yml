@@ -11,8 +11,8 @@ name: gitleaks
 # rename it.
 #
 # Pinned to a commit like every other `uses:` here (.github/workflows/README.md,
-# rule 3): the commit geekdojo/.github#6 adds the reusable workflow in. Re-pin
-# when that workflow changes.
+# rule 3): the merge commit of geekdojo/.github#6 on main. Re-pin when that
+# workflow changes.
 
 on:
   pull_request:
@@ -29,4 +29,4 @@ jobs:
   gitleaks:
     permissions:
       contents: read
-    uses: geekdojo/.github/.github/workflows/gitleaks.yml@bd08afa31e4b5ce35136a7de3a996a8dadbd5898 # geekdojo/.github#6
+    uses: geekdojo/.github/.github/workflows/gitleaks.yml@ebccb01edc23ba168a12face573f085bcfab7054 # main
