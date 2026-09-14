@@ -36,10 +36,13 @@ name: catalog-release
 # To promote a version that dev has already tested, flip the flag on the
 # release that already exists:
 #
-#   gh release edit catalog-vN --prerelease=false
+#   gh release edit catalog-vN --prerelease=false --latest
 #
 # That makes it a full release, which both channels take, and ships the
-# tested, signed bytes unchanged. A channel=stable dispatch of
+# tested, signed bytes unchanged. --latest is part of the procedure: GitHub
+# does not reliably move "Latest" to the promoted release on its own
+# (catalog-v26 stayed behind v25 without it), and Latest must always name
+# the newest normal release. Clusters never read Latest; people do. A channel=stable dispatch of
 # this workflow cannot do it. The gate below compares VERSION against every
 # published catalog-v* tag, prerelease or not, and dev always publishes the
 # number first on merge, so the dispatch fails with "Bump VERSION in a PR".
