@@ -65,6 +65,13 @@ jobs:
         run: |
           pip install --quiet zizmor==1.29.0
           zizmor --format plain .github/workflows/
+      # release.yml's publish job runs scripts/release-target-guard.sh before
+      # and after `gh release create` to prove the catalog-vN tag is on the
+      # commit that was bundled and signed. Every exit status, against a
+      # throwaway git remote with lightweight, annotated and nested tags. No
+      # network.
+      - name: release target guard tests
+        run: ./scripts/test-release-target-guard.sh
 
   supply-chain:
     # Gates on the app's OWN dependency count not rising, comparing the old and

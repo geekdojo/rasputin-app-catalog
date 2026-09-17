@@ -136,6 +136,15 @@ jobs:
           persist-credentials: false
           # Needed to diff this push against its predecessor in the gate below.
           fetch-depth: 0
+
+      # The exact commit this job checked out, which "Build and sign" bundles
+      # and signs. The release tag must land HERE, not on whatever main points
+      # at when the publish step runs: with no explicit target, GitHub creates
+      # a new tag from the default branch at publish time, so a merge landing
+      # mid-run would tag a commit this bundle was never built from.
+      - name: Record built commit
+        id: src
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
@@ -270,11 +279,30 @@ jobs:
           # flag flip on its release, not a dispatch (see CHANNELS in the
           # header).
           CHANNEL: ${{ inputs.channel || 'dev' }}
+          # Every catalog-vN tag is created by this step, so --target always
+          # applies: the tag lands on the commit that was built and signed.
+          TARGET_SHA: ${{ steps.src.outputs.sha }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
         run: |
           set -eu
           version="$(tr -d '[:space:]' < VERSION)"
+          tag="catalog-v${version}"
           flag=""
           [ "$CHANNEL" = "stable" ] || flag="--prerelease"
+
+          # Before publishing: the gate above compares VERSION with published
+          # releases, not tags, so a stray catalog-vN tag on another commit
+          # would make gh ignore --target and publish this bundle under it.
+          # Refuse (status 1), and refuse if the remote cannot be read (2).
+          # Status 3 (absent) is the normal case: this step creates the tag.
+          created_tag=false
+          rc=0
+          ./scripts/release-target-guard.sh "$REPO_URL" "$tag" "$TARGET_SHA" || rc=$?
+          case "$rc" in
+            0) ;;
+            3) created_tag=true ;;
+            *) echo "::error::refusing to publish $tag: see release-target-guard above"; exit 1 ;;
+          esac
 
           # Notes go through a file, not an inline --notes string. A multi-line
           # argument written inline has to stay indented INSIDE this block
@@ -301,7 +329,25 @@ jobs:
           sed -i 's/^          //' /tmp/notes.md
 
           # shellcheck disable=SC2086
-          gh release create "catalog-v${version}" $flag \
+          gh release create "$tag" $flag \
+            --target "$TARGET_SHA" \
             --title "Rasputin App Catalog v${version}" \
             --notes-file /tmp/notes.md \
             catalog.json catalog.json.sig
+
+          # After publishing: prove the tag landed on the built commit. A tag
+          # this step created on the wrong commit is deleted with its release,
+          # so no cluster can fetch a bundle whose tag names another commit. A
+          # tag that already existed is never deleted. Only a proven mismatch
+          # (1) deletes; an unreadable remote fails without touching the
+          # release.
+          rc=0
+          ./scripts/release-target-guard.sh "$REPO_URL" "$tag" "$TARGET_SHA" || rc=$?
+          if [ "$rc" != 0 ]; then
+            if [ "$rc" = 1 ] && [ "$created_tag" = true ]; then
+              echo "::error::deleting release $tag and its tag: this run created them on the wrong commit"
+              gh release delete "$tag" --cleanup-tag --yes \
+                || echo "::error::could not delete release $tag; delete it and its tag by hand"
+            fi
+            exit 1
+          fi
