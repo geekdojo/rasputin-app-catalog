@@ -128,6 +128,13 @@ jobs:
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs: build
     runs-on: ubuntu-latest
+    # The catalog signing credential lives in this repository's `signing`
+    # ENVIRONMENT, not in repository- or organisation-level secrets
+    # (geekdojo/geekdojo-brain#524). Naming the environment here is what makes
+    # its secrets reachable at all, and what makes its deployment-branch policy
+    # apply, so the ref check above is backed by the platform and not only by
+    # this file.
+    environment: signing
     permissions:
       contents: write # create the release
     steps:
@@ -206,40 +213,45 @@ jobs:
           echo "::error::tiles/ changed but VERSION ($version) is not above the highest published catalog ($latest). A corpus change must bump VERSION."
           exit 1
 
-      - name: Stage signing material
+      # The credential is staged and gated by the organisation's shared action
+      # (geekdojo/geekdojo-brain#524), pinned by SHA. It runs the same checks
+      # scripts/pki-init.sh --catalog-leaf runs at mint time, which is more than
+      # this step did: the chain check alone would accept a leaf that had
+      # quietly acquired codeSigning, or one missing the catalog OID entirely.
+      #
+      # The first is the whole of ADR-0006 Decision 3 -- a catalog key that
+      # carries codeSigning can sign a RAUC bundle, which is precisely the
+      # blast radius the separate leaf exists to prevent. The second is a leaf
+      # artifactsig refuses, so every controlplane would reject the catalog
+      # while CI called the release good.
+      #
+      # If the secrets are missing: the catalog leaf is DISTINCT from the
+      # release leaf by design. It carries the catalog EKU and not generic
+      # codeSigning, and is minted with scripts/pki-init.sh --catalog-leaf in
+      # rasputin-control-plane.
+      - name: Stage and preflight the signing credential
         id: stage
         if: steps.gate.outputs.publish == 'true'
-        env:
-          LEAF_KEY:  ${{ secrets.RASPUTIN_CATALOG_LEAF_KEY }}
-          LEAF_CERT: ${{ secrets.RASPUTIN_CATALOG_LEAF_CERT }}
-          ROOT_PEM:  ${{ vars.RASPUTIN_ROOT_CA_PEM }}
-        run: |
-          set -eu
-          if [ -z "${LEAF_KEY:-}" ] || [ -z "${LEAF_CERT:-}" ] || [ -z "${ROOT_PEM:-}" ]; then
-            echo "::error::missing RASPUTIN_CATALOG_LEAF_KEY / RASPUTIN_CATALOG_LEAF_CERT (repo secrets) or RASPUTIN_ROOT_CA_PEM (org variable)."
-            echo "::error::The catalog leaf is DISTINCT from the release leaf by design (ADR-0006 Decision 3): it carries the catalog EKU and not generic codeSigning, so a catalog key cannot sign a RAUC bundle. It cannot be minted until the IANA PEN lands — geekdojo/geekdojo-brain#192."
-            exit 1
-          fi
-          sudo mkdir -p /mnt/rasputin-sign
-          sudo mount -t tmpfs -o size=8M,mode=0700,uid=$(id -u),gid=$(id -g) tmpfs /mnt/rasputin-sign
-          umask 077
-          printf '%s' "$LEAF_KEY"  > /mnt/rasputin-sign/leaf.key
-          printf '%s' "$LEAF_CERT" > /mnt/rasputin-sign/leaf-chain.pem
-          printf '%s' "$ROOT_PEM"  > /mnt/rasputin-sign/root-ca.pem
-          awk -v leaf=/mnt/rasputin-sign/leaf.pem \
-              -v inter=/mnt/rasputin-sign/intermediate.pem \
-              '/-----BEGIN CERTIFICATE-----/{i++} {if(i==1)print > leaf; else if(i==2)print > inter}' \
-              /mnt/rasputin-sign/leaf-chain.pem
-          # Sanity-check the chain before signing anything with it.
-          openssl verify -CAfile /mnt/rasputin-sign/root-ca.pem \
-            -untrusted /mnt/rasputin-sign/intermediate.pem \
-            -purpose any /mnt/rasputin-sign/leaf.pem \
-            || { echo "::error::catalog leaf does not chain to the Rasputin root"; exit 1; }
+        uses: geekdojo/.github/.github/actions/rasputin-sign@e94e742453c1a1d0d3426d1b541bd5f1a82f3c4a
+        with:
+          purpose: catalog
+          leaf-key:  ${{ secrets.RASPUTIN_CATALOG_LEAF_KEY }}
+          leaf-cert: ${{ secrets.RASPUTIN_CATALOG_LEAF_CERT }}
+          root-ca:   ${{ vars.RASPUTIN_ROOT_CA_PEM }}
 
       - name: Build and sign
         if: steps.gate.outputs.publish == 'true'
         env:
           SOURCE: ${{ github.repository }}@${{ github.sha }}
+          # Through the environment, not expanded into the script text: a
+          # `${{ }}` inside a run block is substituted before the shell ever
+          # sees it, so its value becomes code rather than data. These
+          # particular values are paths the action just wrote, but the rule is
+          # the rule (zizmor template-injection), and a step that follows it is
+          # one nobody has to re-reason about later.
+          LEAF: ${{ steps.stage.outputs.leaf }}
+          INTERMEDIATE: ${{ steps.stage.outputs.intermediate }}
+          KEY: ${{ steps.stage.outputs.key }}
         run: |
           set -eu
           version="$(tr -d '[:space:]' < VERSION)"
@@ -249,25 +261,32 @@ jobs:
 
           openssl cms -sign -binary \
             -in       catalog.json \
-            -signer   /mnt/rasputin-sign/leaf.pem \
-            -certfile /mnt/rasputin-sign/intermediate.pem \
-            -inkey    /mnt/rasputin-sign/leaf.key \
+            -signer   "$LEAF" \
+            -certfile "$INTERMEDIATE" \
+            -inkey    "$KEY" \
             -outform DER \
             -out      catalog.json.sig
 
-          # Prove the signature verifies BEFORE it is published. `-purpose any`
-          # is required and is not laziness: the catalog leaf carries only the
-          # catalog EKU, deliberately NOT generic codeSigning (Decision 3), and
-          # openssl's default purpose check rejects a leaf on that basis alone.
-          openssl cms -verify -binary -inform DER \
-            -in catalog.json.sig -content catalog.json \
-            -CAfile /mnt/rasputin-sign/root-ca.pem -purpose any -out /dev/null \
-            || { echo "::error::catalog.json.sig does not verify against the root CA"; exit 1; }
           ls -l catalog.json catalog.json.sig
+
+      # Prove the signature verifies BEFORE it is published. The action applies
+      # `-purpose any` for the catalog class, which is required and is not
+      # laziness: the catalog leaf carries only the catalog EKU, deliberately
+      # NOT generic codeSigning (ADR-0006 Decision 3), and openssl's default
+      # purpose check rejects a leaf on that basis alone.
+      - name: Self-verify the signed catalog
+        if: steps.gate.outputs.publish == 'true'
+        uses: geekdojo/.github/.github/actions/rasputin-sign@e94e742453c1a1d0d3426d1b541bd5f1a82f3c4a
+        with:
+          mode: verify
+          purpose: catalog
+          artifacts: catalog.json
 
       - name: Wipe signing material
         if: always()
-        run: sudo umount /mnt/rasputin-sign 2>/dev/null || true
+        uses: geekdojo/.github/.github/actions/rasputin-sign@e94e742453c1a1d0d3426d1b541bd5f1a82f3c4a
+        with:
+          mode: cleanup
 
       - name: Publish the release
         if: steps.gate.outputs.publish == 'true'
