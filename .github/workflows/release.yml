@@ -232,7 +232,7 @@ jobs:
       - name: Stage and preflight the signing credential
         id: stage
         if: steps.gate.outputs.publish == 'true'
-        uses: geekdojo/.github/.github/actions/rasputin-sign@ecbad26a422f9adf8625a424c1b72c891a72a68c
+        uses: geekdojo/.github/.github/actions/rasputin-sign@e94e742453c1a1d0d3426d1b541bd5f1a82f3c4a
         with:
           purpose: catalog
           leaf-key:  ${{ secrets.RASPUTIN_CATALOG_LEAF_KEY }}
@@ -276,7 +276,7 @@ jobs:
       # purpose check rejects a leaf on that basis alone.
       - name: Self-verify the signed catalog
         if: steps.gate.outputs.publish == 'true'
-        uses: geekdojo/.github/.github/actions/rasputin-sign@ecbad26a422f9adf8625a424c1b72c891a72a68c
+        uses: geekdojo/.github/.github/actions/rasputin-sign@e94e742453c1a1d0d3426d1b541bd5f1a82f3c4a
         with:
           mode: verify
           purpose: catalog
@@ -284,7 +284,7 @@ jobs:
 
       - name: Wipe signing material
         if: always()
-        uses: geekdojo/.github/.github/actions/rasputin-sign@ecbad26a422f9adf8625a424c1b72c891a72a68c
+        uses: geekdojo/.github/.github/actions/rasputin-sign@e94e742453c1a1d0d3426d1b541bd5f1a82f3c4a
         with:
           mode: cleanup
 
