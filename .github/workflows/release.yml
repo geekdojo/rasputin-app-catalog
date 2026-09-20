@@ -243,6 +243,15 @@ jobs:
         if: steps.gate.outputs.publish == 'true'
         env:
           SOURCE: ${{ github.repository }}@${{ github.sha }}
+          # Through the environment, not expanded into the script text: a
+          # `${{ }}` inside a run block is substituted before the shell ever
+          # sees it, so its value becomes code rather than data. These
+          # particular values are paths the action just wrote, but the rule is
+          # the rule (zizmor template-injection), and a step that follows it is
+          # one nobody has to re-reason about later.
+          LEAF: ${{ steps.stage.outputs.leaf }}
+          INTERMEDIATE: ${{ steps.stage.outputs.intermediate }}
+          KEY: ${{ steps.stage.outputs.key }}
         run: |
           set -eu
           version="$(tr -d '[:space:]' < VERSION)"
@@ -252,9 +261,9 @@ jobs:
 
           openssl cms -sign -binary \
             -in       catalog.json \
-            -signer   ${{ steps.stage.outputs.leaf }} \
-            -certfile ${{ steps.stage.outputs.intermediate }} \
-            -inkey    ${{ steps.stage.outputs.key }} \
+            -signer   "$LEAF" \
+            -certfile "$INTERMEDIATE" \
+            -inkey    "$KEY" \
             -outform DER \
             -out      catalog.json.sig
 
