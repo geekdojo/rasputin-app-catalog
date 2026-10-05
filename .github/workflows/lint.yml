@@ -98,7 +98,7 @@ jobs:
           # "latest" by default, so a scan result would depend on when it
           # ran — and the supply-chain gate compares two scans expecting
           # the same engine on both sides.
-          version: v0.74.0
+          version: v0.75.0
       - name: app-level vulnerabilities must not increase
         # BASE_REF via env, not interpolated into the run block. A branch name
         # is attacker-influenced text and git permits characters a shell will
