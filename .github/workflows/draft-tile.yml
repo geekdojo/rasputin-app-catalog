@@ -70,7 +70,7 @@ jobs:
           # "latest" by default, so a scan result would depend on when it
           # ran — and the supply-chain gate compares two scans expecting
           # the same engine on both sides.
-          version: v0.74.0
+          version: v0.75.0
 
       # Refuse anything triage has not cleared. Without this the dispatch input
       # is a way to point the agent at an arbitrary issue and skip validation —
@@ -102,7 +102,7 @@ jobs:
           wc -c /tmp/request.md
 
       - name: draft the tile
-        uses: anthropics/claude-code-action@8ce9314fa9a404564fa7e954cd84f25bcba2b829 # v1
+        uses: anthropics/claude-code-action@cab360f6565aa35a51d6ce9e43f1f4287c0a32ea # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           show_full_output: "true"
