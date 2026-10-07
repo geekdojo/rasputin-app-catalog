@@ -12,7 +12,55 @@ services:
   backend:
     image: ghcr.io/bigbodycobain/shadowbroker-backend:0.9.84@sha256:8b4bfdc01da491c37c0523ffbcb5dc3beb29324805abd35fcef436ae11511f18
     restart: unless-stopped
+    # KEYS SAVED IN THE APP'S SETTINGS PAGE — two changes make them work.
+    #
+    # 1. Saving. The backend only accepts a key save (PUT /api/settings/api-keys)
+    #    from loopback, from an X-Admin-Key matching ADMIN_KEY, or — when
+    #    SHADOWBROKER_TRUST_DOCKER_BRIDGE_LOCAL_OPERATOR is on — from the
+    #    frontend container's own bridge IP (upstream auth.py resolves the
+    #    `frontend` service name; no other bridge address is trusted). The
+    #    settings page saves through the frontend, so without the switch below
+    #    every save is refused "403 local operator access only".
+    #
+    #    TRADE-OFF, plainly: with this on, anyone who can reach the web port
+    #    (3200) can set this app's API keys — and every other backend endpoint
+    #    upstream gates as "local operator" that the frontend forwards (checked:
+    #    /api/settings/tor and /api/agent-shell/settings answer 200 through 3200).
+    #    A direct call to the API port (8200) is still refused (403). The tile
+    #    ships lan-only.
+    #
+    # 2. Loading after a redeploy. Saved keys persist on the data volume at
+    #    /app/data/operator_api_keys.env, and upstream copies them into the
+    #    environment during startup — but services/ais_stream.py reads
+    #    AIS_API_KEY at import time, before that copy runs, so after any
+    #    redeploy ship tracking logs "AIS_API_KEY not set" while the settings
+    #    page shows the key set. The entrypoint below runs upstream's OWN loader
+    #    (services.api_settings.load_persisted_api_keys_into_environ: same file,
+    #    same parser, same allow-list, fills only keys that are empty in the
+    #    environment) before uvicorn starts, then execs the image's original
+    #    command. The file is parsed by upstream's Python, never sourced by a
+    #    shell, so a key containing $ or a backtick is taken literally.
+    #    REMOVE this entrypoint/command pair once upstream reads AIS_API_KEY
+    #    after loading persisted keys (bug present in 0.9.84, revision 8676a98).
+    #
+    #    The image's own ENTRYPOINT (/app/docker-entrypoint.sh) stays outermost
+    #    so its data-volume seeding still runs first; `command` restates the
+    #    image's CMD verbatim, because overriding entrypoint clears it.
+    #
+    # The keys live only in this app's data volume. Rasputin never stores them.
+    entrypoint:
+      - /app/docker-entrypoint.sh
+      - python3
+      - -c
+      - |
+        import os, sys
+        from services.api_settings import load_persisted_api_keys_into_environ
+        load_persisted_api_keys_into_environ()
+        os.execvp(sys.argv[1], sys.argv[1:])
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-keep-alive", "120"]
     environment:
+      # See the key-saving note above.
+      SHADOWBROKER_TRUST_DOCKER_BRIDGE_LOCAL_OPERATOR: "true"
       # Infonet OFF. See the header — these five are the whole switch.
       MESH_INFONET_FLEET_JOIN: "false"
       MESH_BOOTSTRAP_SEED_PEERS: ""
@@ -20,7 +68,9 @@ services:
       MESH_ARTI_ENABLED: "false"
       MESH_RELAY_PEERS: ""
       # Optional upstream data sources. GDELT works with no key at all, so the
-      # console is useful out of the box; the rest light up as keys are added.
+      # console is useful out of the box; the rest light up as keys are added
+      # in the app's settings page. An empty value here does not block a saved
+      # key: the loader fills any key that is empty in the environment.
       AIS_API_KEY: ""
       OPENSKY_CLIENT_ID: ""
       OPENSKY_CLIENT_SECRET: ""
