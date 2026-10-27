@@ -16,6 +16,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -99,7 +100,7 @@ func checkTile(root, id string, probe bool) (problems, notices []string, unverif
 	tile := l.Tile
 
 	if err := tileschema.ValidateTile(tile); err != nil {
-		problems = append(problems, err.Error())
+		problems = append(problems, withSecretsContract(err.Error(), tile, l.Compose))
 	}
 
 	// Safety runs whenever a stack EXISTS, not only when the tile is available.
@@ -149,6 +150,28 @@ func checkTile(root, id string, probe bool) (problems, notices []string, unverif
 		problems = append(problems, archProblems(tile, facts)...)
 	}
 	return problems, append(privilegeNotices(tile, facts), compose.AnonymousNotices(stack)...), false
+}
+
+// secretsContractURL is the tile-author guide to the ${secret:<name>} channel.
+// The catalog is public, so the guide is too, and it is self-contained: an
+// author fixing a refusal never needs a private document.
+const secretsContractURL = "https://github.com/geekdojo/rasputin-app-catalog/blob/main/docs/tile-secrets.md"
+
+// withSecretsContract appends a pointer to the secrets guide to a ValidateTile
+// refusal when the tile uses the secrets channel.
+//
+// It cannot tell WHICH rule refused the tile without re-running the secret
+// checks, and a second copy of those checks here is the drift ADR-0006
+// Decision 8 forbids. So it keys on the tile instead: a compose carrying the
+// token prefix, or a tile requiring the capability. The cost is that a
+// secret-using tile refused for an unrelated reason also shows the link, which
+// is harmless. The link is a sentence on its own line, appended to the problem
+// it explains, so the problem count and the output contract do not change.
+func withSecretsContract(msg string, t tileschema.Tile, composeYAML string) string {
+	if !strings.Contains(composeYAML, tileschema.SecretTokenPrefix) && !slices.Contains(t.Requires, tileschema.CapabilityTileSecrets) {
+		return msg
+	}
+	return msg + "\n      See " + secretsContractURL + " for how a tile declares its secrets."
 }
 
 // unverifiablePrivilege is what a PREVIEW tile with no compose gets.

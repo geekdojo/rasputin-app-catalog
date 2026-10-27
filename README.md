@@ -134,6 +134,9 @@ Two halves:
   when the tile declares `needsHardware`, and — since ADR-0006 Decision 12 — every other privilege
   **declared rather than refused**.
 
+A tile that needs a password, key or token gets it from the platform: see
+[Secrets in a tile](docs/tile-secrets.md).
+
 ### Privilege: declared and consented, not refused
 
 The catalog used to refuse `privileged`, host networking, host PID/IPC, any `cap_add` and any bind
