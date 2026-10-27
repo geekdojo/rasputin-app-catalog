@@ -34,7 +34,13 @@ Exactly two files, in `tiles/<id>/`:
   anything containing them, including `/`, `/etc` and `/var/lib`. Only
   `/var/lib/rasputin/apps/` is carved out.
 - `restart: unless-stopped`.
-- Sane defaults baked in, so a fresh install works without editing.
+- Sane defaults baked in for settings that are not secrets, so a fresh install works
+  without editing.
+- Any password, key or token the app needs is written `${secret:<name>}` in
+  `environment:` per `docs/tile-secrets.md`. Never write a value, never leave it empty,
+  never generate it in the app. One name per shared value (app and database use the
+  same name). An owner's own third-party key is not supported yet: leave it out and say
+  so in the PR.
 
 **`tile.json`** — metadata matching the schema in `tileschema`.
 - `id` must equal the directory name and be a DNS-1123 label.
@@ -51,7 +57,8 @@ Exactly two files, in `tiles/<id>/`:
   devices on your network", not "requires NET_ADMIN for mDNS discovery".
 - `requires`: add `privilege-tiers-v1` whenever `privilege` is present. The linter's
   snippet includes it. It is what makes an older control plane refuse the tile instead
-  of installing it with no consent prompt.
+  of installing it with no consent prompt. Also add `tile.secrets` whenever the compose
+  contains `${secret:`.
 - `volumes[]`: **one entry per named volume the compose creates**, each with a `backup`
   class and a `quiesce` strategy. There is no default for either and the lint fails on a
   volume you leave out, so classify them as you write the stack rather than afterwards.

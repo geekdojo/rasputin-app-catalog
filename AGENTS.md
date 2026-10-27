@@ -8,3 +8,7 @@ This repo follows the [Geekdojo development principles](https://github.com/geekd
 
 - **It applies to all new code.** Legacy code is refactored toward it when a change can reasonably do so.
 - **A departure needs an approved exception.** The process is in [Standard exceptions](https://github.com/geekdojo/geekdojo-brain/blob/main/engineering/standard-exceptions.md). Approved exceptions for this repo are listed in `EXCEPTIONS.md` at the repo root. The file is created when the first one is approved.
+
+## Tile secrets
+
+Any tile that needs a password, key or token follows [`docs/tile-secrets.md`](docs/tile-secrets.md). It is binding: the platform generates the value from a `${secret:<name>}` token in `environment:`, the tile lists `tile.secrets` in `requires`, and a tile never ships a literal value or generates a secret inside the app. tilelint links the guide from every secret refusal.
