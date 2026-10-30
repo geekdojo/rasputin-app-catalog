@@ -20,14 +20,15 @@ services:
       MESH_ARTI_ENABLED: "false"
       MESH_RELAY_PEERS: ""
       # Optional upstream data sources. GDELT works with no key at all, so the
-      # console is useful out of the box; the rest light up as keys are added.
-      AIS_API_KEY: ""
-      OPENSKY_CLIENT_ID: ""
-      OPENSKY_CLIENT_SECRET: ""
-      GFW_API_TOKEN: ""
-      WINDY_API_KEY: ""
-      FINNHUB_API_KEY: ""
-      AIRFRAMES_API_KEY: ""
+      # console is useful out of the box; the rest light up as the owner adds
+      # their keys under SECRETS in the Apps drawer.
+      AIS_API_KEY: "${secret:ais-api-key}"
+      OPENSKY_CLIENT_ID: "${secret:opensky-client-id}"
+      OPENSKY_CLIENT_SECRET: "${secret:opensky-client-secret}"
+      GFW_API_TOKEN: "${secret:gfw-api-token}"
+      WINDY_API_KEY: "${secret:windy-api-key}"
+      FINNHUB_API_KEY: "${secret:finnhub-api-key}"
+      AIRFRAMES_API_KEY: "${secret:airframes-api-key}"
     volumes:
       - shadowbroker-data:/app/data
     ports:

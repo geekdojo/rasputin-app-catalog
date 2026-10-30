@@ -29,7 +29,46 @@
     }
   ],
   "requires": [
-    "tile.web-port"
+    "tile.web-port",
+    "tile.secrets",
+    "tile.operator-secrets"
+  ],
+  "operatorSecrets": [
+    {
+      "name": "ais-api-key",
+      "label": "AISStream API key (ships)",
+      "required": false
+    },
+    {
+      "name": "opensky-client-id",
+      "label": "OpenSky client ID (flights)",
+      "required": false
+    },
+    {
+      "name": "opensky-client-secret",
+      "label": "OpenSky client secret (flights)",
+      "required": false
+    },
+    {
+      "name": "gfw-api-token",
+      "label": "Global Fishing Watch API token",
+      "required": false
+    },
+    {
+      "name": "windy-api-key",
+      "label": "Windy API key",
+      "required": false
+    },
+    {
+      "name": "finnhub-api-key",
+      "label": "Finnhub API key",
+      "required": false
+    },
+    {
+      "name": "airframes-api-key",
+      "label": "Airframes API key",
+      "required": false
+    }
   ],
   "volumes": [
     {
@@ -40,5 +79,5 @@
   ],
   "website": "https://github.com/bigbodycobain/shadowbroker",
   "icon": "\ud83d\udef0\ufe0f",
-  "postInstall": "Open it and add your OpenSky / AISStream keys in settings for full flight + ship coverage."
+  "postInstall": "Works without keys. For full flight and ship coverage, add your OpenSky and AISStream keys under SECRETS in its Apps drawer; saving them redeploys it."
 }
