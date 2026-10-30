@@ -256,7 +256,7 @@ volumes:
 ```
 
 The example is checked by this repository's tests on every pull request, so it is a valid tile
-under the tile format that stable clusters enforce.
+under the tile contract this repository builds against (the `tileschema` version in `go.mod`).
 
 ## Checking your tile
 

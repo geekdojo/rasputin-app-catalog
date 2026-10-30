@@ -125,6 +125,10 @@ both sides import it: this repo validates a tile before publishing, and the cont
 validates it again before loading it into a running cluster. There is deliberately **one
 implementation** — two hand-maintained lists drift, and the drift is silent because each side
 stays internally green.
+This repo requires `tileschema` at a contract tag (`tileschema/v1.x.y`), never a commit.
+Renovate opens a bump for each new tag and merges it once the required checks pass. A new major is
+a new import path and is changed by hand. The bump arrives on Renovate's weekly scheduled run
+(Mondays at 08:17 UTC); a manual `workflow_dispatch` of the renovate workflow brings it in at once.
 
 Two halves:
 
