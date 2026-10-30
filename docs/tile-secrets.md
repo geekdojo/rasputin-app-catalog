@@ -170,16 +170,21 @@ it. Three things go together:
 
 What the owner and the app see:
 
-- **The deploy is refused until the owner sets every declared value** the compose uses. The app
-  is not started with an empty or made-up value; the refusal names each missing secret by its
-  label, and the owner sets them and deploys again. An upgrade to a tile version that adds a
+- **The deploy is refused until the owner sets every required declared value** the compose
+  uses. The app is not started with an empty or made-up value; the refusal names each missing
+  secret by its label, and the owner sets them and deploys again. An upgrade to a tile version that adds a
   declared secret also fails until the owner sets it; the containers already running are left
   as they were.
 - **The value is write-only.** The owner can set or replace it, but nobody can read it back, not
   even the owner. The app receives it in its environment variable, as with any token.
-- **Every declared secret is required.** There is no optional form yet. Optional operator-supplied
-  secrets come later; until then, a value the app can run without stays out of the compose, and
-  the app takes it in its own settings page after install.
+- **A declared secret is required unless it says `required: false`.** Add `"required": false`
+  to a declaration only when the app runs without the value, for example an optional second
+  data feed. Until the owner sets an optional secret, the app receives an empty string in its
+  environment variable. The deploy is not refused, and the platform never creates a value for
+  the name. Leave the field out for a secret the app cannot run without: an absent `required`
+  means required. A control plane older than the release that carries optional secrets
+  (geekdojo-brain#604) ignores the field and treats the secret as required, refusing the deploy
+  until the owner sets it, so the field never makes an older cluster hand the app a made-up value.
 
 **Never turn a published derived name into an operator-supplied one.** If a tile has been
 published with `${secret:<name>}` as a derived secret, every installed copy already holds a
