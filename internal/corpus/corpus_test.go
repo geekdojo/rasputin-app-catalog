@@ -3,7 +3,9 @@ package corpus
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -308,6 +310,54 @@ func TestBuildBundle_RefusesTrailingContentAfterTheTile(t *testing.T) {
 	}
 	if b.Tiles != nil {
 		t.Errorf("a refused build returned %d tiles to publish", len(b.Tiles))
+	}
+}
+
+// A corpus the builder cannot list publishes nothing: a missing tiles root is
+// refused with the read error, not turned into an empty bundle.
+func TestBuildBundle_RefusesAnUnreadableCorpus(t *testing.T) {
+	b, err := BuildBundle(filepath.Join(t.TempDir(), "no-such-tiles"), 1, "2026-08-20T00:00:00Z", "")
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("a missing tiles root must be refused with its read error, got %v", err)
+	}
+	if b.Tiles != nil {
+		t.Errorf("a refused build returned %d tiles to publish", len(b.Tiles))
+	}
+}
+
+// A stack the builder cannot turn into safety facts or a volume inventory is
+// refused, naming the tile, and nothing is returned to encode. The two stacks
+// fail at different readers: the first declares a service with no image
+// (compose.Extract), the second spells the top-level volumes block as a list,
+// which Extract does not read and compose.Volumes cannot decode.
+func TestBuildBundle_RefusesAStackItCannotRead(t *testing.T) {
+	const tileJSON = `{"id":"%s","name":"S","tagline":"t","description":"d",
+      "collection":"essentials","arch":"both","exposureDefault":"lan-only",
+      "ramFloorMB":256,"requires":["tile.web-port"],
+      "ports":[{"name":"web","container":80,"published":8080,"web":true}]}`
+	for _, tc := range []struct {
+		id, stack, want string
+	}{
+		{"no-image", "services:\n  app:\n    restart: always\n", `service "app" declares no image`},
+		{"volumes-as-list", validStack + "volumes:\n  - data\n", "parse compose volumes"},
+	} {
+		t.Run(tc.id, func(t *testing.T) {
+			root := t.TempDir()
+			writeTile(t, root, tc.id, fmt.Sprintf(tileJSON, tc.id), tc.stack)
+
+			b, err := BuildBundle(root, 1, "2026-08-20T00:00:00Z", "")
+			if err == nil {
+				t.Fatal("a stack the builder cannot read must be refused")
+			}
+			for _, want := range []string{fmt.Sprintf("tile %q", tc.id), tc.want} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("refusal does not mention %q: %v", want, err)
+				}
+			}
+			if b.Tiles != nil {
+				t.Errorf("a refused build returned %d tiles to publish", len(b.Tiles))
+			}
+		})
 	}
 }
 
