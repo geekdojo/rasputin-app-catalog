@@ -3,6 +3,7 @@
   "extends": ["config:recommended", ":dependencyDashboard"],
   "prConcurrentLimit": 3,
   "prHourlyLimit": 0,
+  "postUpdateOptions": ["gomodTidy"],
   "docker-compose": { "managerFilePatterns": ["/tiles/.+/docker-compose\\.yml$/"] },
   "packageRules": [
     {
@@ -30,6 +31,15 @@
       "description": "Keep Renovate's own action current; it is the thing opening PRs against the repo that will hold the signing surface.",
       "matchManagers": ["github-actions"],
       "groupName": "github actions",
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true
+    },
+    {
+      "description": "The tile contract (ADR-0012 Decision 6). Each tileschema/v1 tag is bumped and merged once the required checks are green; nobody moves this pin by hand and it never waits for a stable control-plane cut. A new major is a new import path (…/tileschema/v2), so it is never matched here and never automerged.",
+      "matchManagers": ["gomod"],
+      "matchPackageNames": ["github.com/geekdojo/rasputin-control-plane/tileschema"],
+      "matchUpdateTypes": ["minor", "patch"],
       "automerge": true,
       "automergeType": "pr",
       "platformAutomerge": true
