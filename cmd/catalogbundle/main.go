@@ -14,7 +14,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -53,15 +52,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Indented, not compact. The artifact is signed over its bytes either way,
-	// and a catalog someone can read in a browser during an incident is worth
-	// more than the few kilobytes compaction saves on a daily poll.
-	body, err := json.MarshalIndent(bundle, "", "  ")
+	body, err := bundle.Encode()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "catalogbundle:", err)
 		os.Exit(1)
 	}
-	body = append(body, '\n')
 
 	if *out == "-" {
 		if _, err := os.Stdout.Write(body); err != nil {
