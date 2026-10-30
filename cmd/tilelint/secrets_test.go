@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -192,14 +193,20 @@ func exampleBlock(guide, file string) (string, error) {
 
 // guideExample reads the guide at path and returns its worked example.
 func guideExample(path string) (tileJSON, composeYAML string, err error) {
+	return guideExampleNamed(path, "")
+}
+
+// guideExampleNamed reads the guide at path and returns the worked example
+// whose markers carry prefix: "" for the main example, "operator " for R6's.
+func guideExampleNamed(path, prefix string) (tileJSON, composeYAML string, err error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return "", "", fmt.Errorf("read the secrets guide: %w", err)
 	}
-	if tileJSON, err = exampleBlock(string(raw), "tile.json"); err != nil {
+	if tileJSON, err = exampleBlock(string(raw), prefix+"tile.json"); err != nil {
 		return "", "", err
 	}
-	if composeYAML, err = exampleBlock(string(raw), "docker-compose.yml"); err != nil {
+	if composeYAML, err = exampleBlock(string(raw), prefix+"docker-compose.yml"); err != nil {
 		return "", "", err
 	}
 	return tileJSON, composeYAML, nil
@@ -209,11 +216,18 @@ func guideExample(path string) (tileJSON, composeYAML string, err error) {
 // skipping) when the guide or either block cannot be found.
 func loadGuideExample(t *testing.T) (tileschema.Tile, string) {
 	t.Helper()
+	return loadGuideExampleNamed(t, "")
+}
+
+// loadGuideExampleNamed is loadGuideExample for the example whose markers
+// carry prefix.
+func loadGuideExampleNamed(t *testing.T, prefix string) (tileschema.Tile, string) {
+	t.Helper()
 	path, err := guidePath(secretsContractURL)
 	if err != nil {
 		t.Fatal(err)
 	}
-	tileJSON, composeYAML, err := guideExample(path)
+	tileJSON, composeYAML, err := guideExampleNamed(path, prefix)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -326,4 +340,77 @@ func TestGuideExampleFailurePaths(t *testing.T) {
 	if _, err := guidePath(secretsContractURL); err != nil {
 		t.Fatalf("control: the real URL must parse: %v", err)
 	}
+}
+
+// TC-780-18: R6's worked example, a tile declaring an operator-supplied
+// secret, lints clean.
+func TestOperatorGuideExampleIsAValidTile(t *testing.T) {
+	tile, composeYAML := loadGuideExampleNamed(t, "operator ")
+	if len(tile.OperatorSecrets) == 0 {
+		t.Fatal("R6's example declares no operator secrets")
+	}
+	if !slices.Contains(tile.Requires, tileschema.CapabilityOperatorSecrets) {
+		t.Fatalf("R6's example does not list %q", tileschema.CapabilityOperatorSecrets)
+	}
+	for _, s := range tile.OperatorSecrets {
+		if !strings.Contains(composeYAML, tileschema.SecretTokenPrefix+s.Name+"}") {
+			t.Fatalf("R6's compose does not use its declared secret %q", s.Name)
+		}
+	}
+
+	root := t.TempDir()
+	writeTile(t, root, tile.ID, tile, composeYAML)
+	problems, _, _ := checkTile(root, tile.ID, false)
+	if len(problems) != 0 {
+		t.Fatalf("R6's worked example must lint clean, got: %q", problems)
+	}
+}
+
+// TC-780-19: R6's example without tile.operator-secrets is refused, and the
+// refusal carries the guide's URL on its own line; a preview tile with no
+// compose that declares operator secrets and lists neither capability is
+// refused with the URL too.
+func TestOperatorSecretRefusalsLinkTheGuide(t *testing.T) {
+	t.Run("R6 example without the capability", func(t *testing.T) {
+		tile, composeYAML := loadGuideExampleNamed(t, "operator ")
+		var kept []string
+		for _, r := range tile.Requires {
+			if r != tileschema.CapabilityOperatorSecrets {
+				kept = append(kept, r)
+			}
+		}
+		if len(kept) == len(tile.Requires) {
+			t.Fatal("R6's example does not list tile.operator-secrets, so there is nothing to remove")
+		}
+		tile.Requires = kept
+
+		root := t.TempDir()
+		writeTile(t, root, tile.ID, tile, composeYAML)
+		problems, _, _ := checkTile(root, tile.ID, false)
+		joined := strings.Join(problems, "\n")
+		if !strings.Contains(joined, tileschema.CapabilityOperatorSecrets) {
+			t.Fatalf("want the capability refusal, got %q", problems)
+		}
+		if problemsWithURL(problems) != 1 {
+			t.Fatalf("want exactly one problem carrying %s, got %q", secretsContractURL, problems)
+		}
+		if !strings.Contains(joined, "\n      See "+secretsContractURL) {
+			t.Fatalf("the URL is not on its own line: %q", problems)
+		}
+	})
+	t.Run("preview tile, no compose, neither capability", func(t *testing.T) {
+		tile := baseTile("preview-operator")
+		tile.Status = tileschema.StatusPreview
+		tile.OperatorSecrets = []tileschema.OperatorSecret{{Name: "ais-key", Label: "AISStream API key"}}
+
+		root := t.TempDir()
+		writeTile(t, root, tile.ID, tile, "")
+		problems, _, _ := checkTile(root, tile.ID, false)
+		if !strings.Contains(strings.Join(problems, "\n"), tileschema.CapabilityOperatorSecrets) {
+			t.Fatalf("want the capability refusal, got %q", problems)
+		}
+		if problemsWithURL(problems) != 1 {
+			t.Fatalf("want exactly one problem carrying %s, got %q", secretsContractURL, problems)
+		}
+	})
 }

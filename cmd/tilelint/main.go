@@ -163,12 +163,16 @@ const secretsContractURL = "https://github.com/geekdojo/rasputin-app-catalog/blo
 // It cannot tell WHICH rule refused the tile without re-running the secret
 // checks, and a second copy of those checks here is the drift ADR-0006
 // Decision 8 forbids. So it keys on the tile instead: a compose carrying the
-// token prefix, or a tile requiring the capability. The cost is that a
+// token prefix, a tile requiring the capability, or a tile declaring
+// operator-supplied secrets (a preview tile may declare them with no compose
+// and no capability, and its refusal must link the guide too: ADR-0006
+// says every secret refusal links it). The cost is that a
 // secret-using tile refused for an unrelated reason also shows the link, which
 // is harmless. The link is a sentence on its own line, appended to the problem
 // it explains, so the problem count and the output contract do not change.
 func withSecretsContract(msg string, t tileschema.Tile, composeYAML string) string {
-	if !strings.Contains(composeYAML, tileschema.SecretTokenPrefix) && !slices.Contains(t.Requires, tileschema.CapabilityTileSecrets) {
+	if !strings.Contains(composeYAML, tileschema.SecretTokenPrefix) && !slices.Contains(t.Requires, tileschema.CapabilityTileSecrets) &&
+		len(t.OperatorSecrets) == 0 {
 		return msg
 	}
 	return msg + "\n      See " + secretsContractURL + " for how a tile declares its secrets."

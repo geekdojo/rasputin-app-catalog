@@ -11,4 +11,4 @@ This repo follows the [Geekdojo development principles](https://github.com/geekd
 
 ## Tile secrets
 
-Any tile that needs a password, key or token follows [`docs/tile-secrets.md`](docs/tile-secrets.md). It is binding: the platform generates the value from a `${secret:<name>}` token in `environment:`, the tile lists `tile.secrets` in `requires`, and a tile never ships a literal value or generates a secret inside the app. tilelint links the guide from every secret refusal.
+Any tile that needs a password, key or token follows [`docs/tile-secrets.md`](docs/tile-secrets.md). It is binding: the platform generates the value from a `${secret:<name>}` token in `environment:`, the tile lists `tile.secrets` in `requires`, and a tile never ships a literal value or generates a secret inside the app. A value only the owner has, such as their own API key, is an operator-supplied secret: the tile declares it under `operatorSecrets` in `tile.json`, uses it as the same token, and also lists `tile.operator-secrets` (R6). No tile may use that capability until the stable control-plane release R6 names. tilelint links the guide from every secret refusal.

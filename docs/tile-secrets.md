@@ -25,9 +25,10 @@ stated here.
 - **Must-understand**: the rule that gives `requires` its teeth. A control plane refuses to
   install a tile that lists a capability it does not know, rather than installing it wrongly.
 - **Derived secret**: a value the platform creates for the tile, such as a database password.
-  Nobody types it. This is the only kind of secret a tile can use today.
+  Nobody types it. Every token is a derived secret unless the tile declares it operator-supplied.
 - **Operator-supplied secret**: a value only the owner has, such as their own API key for a
-  third-party service. Tiles cannot ask for one yet (rule R6).
+  third-party service. The tile declares it in `tile.json`, under `operatorSecrets`, and the
+  owner sets the value; the platform never creates it (rule R6).
 - **`<name>`**: a secret's label, which you choose, such as `db-password`. Rule R1 says which
   characters it may contain.
 - **Token**: the text `${secret:<name>}` you write in the compose where the value must go.
@@ -136,24 +137,135 @@ Source of record (Geekdojo-internal, may not be public): Auth decision 21,
 §9 item 21. That decision's "the platform holds nothing" half was replaced by S14; the rule against
 generating secrets in the app stands.
 
-### R6: operator-supplied secrets are not available yet
+### R6: declare an operator-supplied secret in `tile.json`
 
 An operator-supplied secret is a value only the owner has, such as their own API key for a
-third-party service. The platform cannot create it, so a token cannot supply it.
+third-party service. The platform cannot create it, so the tile declares it, and the owner sets
+it. Three things go together:
 
-The design is settled: the tile will declare the secret in `tile.json`, and the deploy screen will
-show the owner a form to enter it. It is not built. The tile format does not accept that
-declaration yet, and the capability a tile would require for it does not exist yet.
+1. **The declaration.** In `tile.json`, list each one under `operatorSecrets` with a `name` and a
+   `label`:
 
-Until then:
+   ```json
+   "operatorSecrets": [
+     { "name": "ais-key", "label": "AISStream API key" }
+   ]
+   ```
 
-- the app takes the value in its own settings page, after install;
-- the compose carries nothing for it: no variable, no placeholder, no empty value;
-- the only secrets capability a tile requires today is `tile.secrets`.
+   - `name` follows R1's rules for a secret name, and is declared once.
+   - `label` is what the owner is shown when asked for the value. It may not be empty.
+2. **The token.** The compose uses the name as an ordinary token in `environment:`, exactly as
+   R1 describes: `AIS_API_KEY: "${secret:ais-key}"`. Every declared name must appear as a token
+   in the compose; a declared name the compose never uses is refused, because the owner would be
+   asked for a value that reaches no container. (A preview tile with no compose yet is exempt.)
+3. **The capability.** `requires` lists both `tile.secrets` and `tile.operator-secrets`:
+
+   ```json
+   "requires": ["tile.secrets", "tile.operator-secrets"]
+   ```
+
+   Reason: a control plane that knows `tile.secrets` but not operator secrets would see an
+   ordinary token, create a random value for it, and hand that to the app as the owner's key. With
+   the capability listed, that control plane refuses the tile instead.
+
+What the owner and the app see:
+
+- **The deploy is refused until the owner sets every declared value** the compose uses. The app
+  is not started with an empty or made-up value; the refusal names each missing secret by its
+  label, and the owner sets them and deploys again. An upgrade to a tile version that adds a
+  declared secret also fails until the owner sets it; the containers already running are left
+  as they were.
+- **The value is write-only.** The owner can set or replace it, but nobody can read it back, not
+  even the owner. The app receives it in its environment variable, as with any token.
+- **Every declared secret is required.** There is no optional form yet. Optional operator-supplied
+  secrets come later; until then, a value the app can run without stays out of the compose, and
+  the app takes it in its own settings page after install.
+
+**Never turn a published derived name into an operator-supplied one.** If a tile has been
+published with `${secret:<name>}` as a derived secret, every installed copy already holds a
+value the platform created for that name. Declaring the same name operator-supplied would make
+the platform hand that created value to the app as the owner's key. Choose a new name for the
+operator-supplied secret instead. tilelint cannot see a tile's publish history, so reviewers
+check this rule.
+
+**Do not publish a tile that uses this capability yet.** The minimum control plane is the first
+stable release in which an owner can set a declared value, and that release is not cut yet:
+`TBD (placeholder: the first stable release carrying geekdojo-brain#781, filled in when it is
+cut)`. A cluster older than that refuses the tile, or, if it knows the capability but has no
+screen for setting values, can never deploy it. So no tile in this catalog may list
+`tile.operator-secrets` before that release is stable.
+
+The worked example below adds an operator-supplied key to a single-service app.
+
+`tiles/example-feeds/tile.json`:
+
+<!-- tilelint-example: operator tile.json -->
+```json
+{
+  "id": "example-feeds",
+  "name": "Example Feeds",
+  "tagline": "Live ship positions with your own API key.",
+  "description": "A worked example for the secrets guide: an app that needs the owner's own key for a third-party data feed.",
+  "collection": "show-off",
+  "category": "data",
+  "arch": "both",
+  "ramFloorMB": 1024,
+  "exposureDefault": "lan-only",
+  "status": "preview",
+  "ports": [
+    {
+      "name": "web",
+      "container": 8000,
+      "published": 8200,
+      "protocol": "tcp",
+      "web": true
+    }
+  ],
+  "requires": [
+    "tile.web-port",
+    "tile.secrets",
+    "tile.operator-secrets"
+  ],
+  "operatorSecrets": [
+    {
+      "name": "ais-key",
+      "label": "AISStream API key"
+    }
+  ],
+  "volumes": [
+    {
+      "name": "feeds-data",
+      "backup": "state",
+      "quiesce": "stop"
+    }
+  ]
+}
+```
+
+`tiles/example-feeds/docker-compose.yml`:
+
+<!-- tilelint-example: operator docker-compose.yml -->
+```yaml
+services:
+  backend:
+    image: ghcr.io/bigbodycobain/shadowbroker-backend:0.9.84@sha256:8b4bfdc01da491c37c0523ffbcb5dc3beb29324805abd35fcef436ae11511f18
+    restart: unless-stopped
+    environment:
+      AIS_API_KEY: "${secret:ais-key}"
+    volumes:
+      - feeds-data:/app/data
+    ports:
+      - "8200:8000"
+
+volumes:
+  feeds-data:
+```
 
 Source of record (Geekdojo-internal, may not be public): S20,
 [geekdojo/geekdojo-brain#719](https://github.com/geekdojo/geekdojo-brain/issues/719); the build is
-[geekdojo/geekdojo-brain#780](https://github.com/geekdojo/geekdojo-brain/issues/780).
+[geekdojo/geekdojo-brain#780](https://github.com/geekdojo/geekdojo-brain/issues/780), and the
+owner's screen for setting values is
+[geekdojo/geekdojo-brain#781](https://github.com/geekdojo/geekdojo-brain/issues/781).
 
 ### R7: never write the token in a YAML comment
 
@@ -255,8 +367,9 @@ volumes:
   recipes-db:
 ```
 
-The example is checked by this repository's tests on every pull request, so it is a valid tile
-under the tile contract this repository builds against (the `tileschema` version in `go.mod`).
+Both worked examples, this one and R6's, are checked by this repository's tests on every pull
+request, so each is a valid tile under the tile contract this repository builds against (the
+`tileschema` version in `go.mod`).
 
 ## Checking your tile
 
@@ -268,7 +381,7 @@ go run ./cmd/tilelint -tile <id>
 
 It prints one line per problem, starting with `x`, and ends with a count. It exits with status 0
 when there are no problems and 1 when there are. Every secrets refusal ends with a sentence
-pointing back to this guide. The four secrets refusals, and the fix for each:
+pointing back to this guide. The secrets refusals, and the fix for each:
 
 | Refusal (start of the message) | Fix |
 |---|---|
@@ -276,11 +389,19 @@ pointing back to this guide. The four secrets refusals, and the fix for each:
 | `"$${secret:" is escaped with "$$"` | You wrote `$${secret:`, with two `$`. Write a single `$`: `${secret:<name>}`. |
 | `${secret: has no closing brace on its line` | Close the token with `}` on the same line it opens on. |
 | `secret name "<name>" must be a DNS-1123 label` | Rename the secret to lowercase `a`-`z`, `0`-`9` and `-`, 1 to 63 characters, no hyphen at either end (R1). For example, `DB_Pass` becomes `db-pass`. If the tile is already published, see R1 before renaming. |
+| `the tile declares operatorSecrets but does not list "tile.operator-secrets" in requires` | Add `tile.operator-secrets` to `requires` in `tile.json` (R6). |
+| `operatorSecrets[<i>]: name "<name>" must be a DNS-1123 label` | Rename the declared secret, and its token, by R1's rules (R6). |
+| `operatorSecrets[<i>] "<name>": duplicate name` | Declare each operator-supplied secret once (R6). |
+| `operatorSecrets[<i>] "<name>": label is required` | Give the declaration a `label`, the text the owner is shown (R6). |
+| `operatorSecrets[<i>] "<name>": the compose never uses ${secret:<name>}` | Use the declared name as a token in the compose's `environment:`, or remove the declaration. Check for a typo: a token whose name differs from the declaration is a derived secret, not the owner's (R6). |
 
-The secrets refusals are prefixed with `docker-compose.yml: byte <n>:`, where `<n>` is how far
-into the file the bad token starts, counted in bytes from the beginning.
+The token refusals (the second to fourth rows) are prefixed with `docker-compose.yml: byte <n>:`,
+where `<n>` is how far into the file the bad token starts, counted in bytes from the beginning.
+In the `operatorSecrets` refusals, `<i>` is the declaration's position in the list, counting
+from 0.
 
 ## What the platform does
 
 The control plane fills in each token's value when it deploys the tile, and its own database keeps
-only the token, never the value. A deploy is refused while the cluster's secret store is not ready.
+only the token, never the value. A deploy is refused while the cluster's secret store is not ready,
+and while an operator-supplied secret the compose uses is not set.
