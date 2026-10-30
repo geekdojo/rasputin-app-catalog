@@ -193,12 +193,13 @@ the platform hand that created value to the app as the owner's key. Choose a new
 operator-supplied secret instead. tilelint cannot see a tile's publish history, so reviewers
 check this rule.
 
-**Do not publish a tile that uses this capability yet.** The minimum control plane is the first
-stable release in which an owner can set a declared value, and that release is not cut yet:
-`TBD (placeholder: the first stable release carrying geekdojo-brain#781, filled in when it is
-cut)`. A cluster older than that refuses the tile, or, if it knows the capability but has no
-screen for setting values, can never deploy it. So no tile in this catalog may list
-`tile.operator-secrets` before that release is stable.
+**Which clusters can run it.** Every control plane that knows `tile.operator-secrets` also has
+the screen where an owner sets the declared values, so on those clusters the tile installs and
+deploys once the owner has set them. A control plane older than the capability refuses this tile
+alone, naming the capability it lacks, and loads the rest of the catalog. Reason: a cluster that
+ignored the declaration would invent a value and hand it to the app as the owner's key. So a
+catalog release can carry the tile before every cluster can run it; Geekdojo checks which tiles
+stable clusters will refuse before promoting a release to them.
 
 The worked example below adds an operator-supplied key to a single-service app.
 
