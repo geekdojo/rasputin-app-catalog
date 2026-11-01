@@ -3,7 +3,7 @@
 # provisional until the tile clears the hardware bench.
 services:
   karakeep:
-    image: ghcr.io/karakeep-app/karakeep:0.33.2@sha256:b069e4307dec06ea06d16989c6861c30a1ff208568be44ed5fb5d422cd3e950c
+    image: ghcr.io/karakeep-app/karakeep:0.34.1@sha256:69ae5315c618b7c14c1af3e34c6e211acdb231793af424ecd1cab0b70691d987
     restart: unless-stopped
     depends_on:
       - meilisearch
@@ -23,7 +23,7 @@ services:
       - "3000:3000"
 
   meilisearch:
-    image: getmeili/meilisearch:v1.53.1@sha256:8d6643d86d71fad6ad3cba92cde7ccfce9e4d6c384bda67598eb553571c32431
+    image: getmeili/meilisearch:v1.56.0@sha256:1f578fa865f8251894b3bf38d6668d6209a3f451f8f65ab953e129d4c1db5ef4
     restart: unless-stopped
     environment:
       MEILI_NO_ANALYTICS: "true"

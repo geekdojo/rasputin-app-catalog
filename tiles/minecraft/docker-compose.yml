@@ -3,7 +3,7 @@
 # provisional until the tile clears the hardware bench.
 services:
   minecraft:
-    image: itzg/minecraft-server:2026.8.2@sha256:efa878ddb49cf5251b2e5f2ad71b08fd2f7236c1f7907433f6697258b31d2ce4
+    image: itzg/minecraft-server:2026.10.1@sha256:d12aed7e35981dfe259b60fbfee77d23a19b5898a7a31dca298d18b47b7b5776
     restart: unless-stopped
     environment:
       # Mojang's EULA (https://aka.ms/MinecraftEULA). The server refuses to
