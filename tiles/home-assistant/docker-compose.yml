@@ -50,7 +50,7 @@ services:
   # It runs the same pinned Home Assistant image rather than a shell image on purpose:
   # nothing new to pull, nothing new to arch-probe, nothing new to vouch for.
   home-assistant-config-seed:
-    image: ghcr.io/home-assistant/home-assistant:2026.8.3@sha256:14931c6b13756317849f46da1d01b45937a1150db66c081cfe529d48215943fe
+    image: ghcr.io/home-assistant/home-assistant:2026.10.4@sha256:23f4dfbb69ce76315dbc4de7915504f1c2dcecd7ca2648113a493a385972e133
     restart: "no"
     entrypoint:
       - /bin/sh
@@ -129,7 +129,7 @@ services:
       - homeassistant-config:/config
 
   home-assistant:
-    image: ghcr.io/home-assistant/home-assistant:2026.8.3@sha256:14931c6b13756317849f46da1d01b45937a1150db66c081cfe529d48215943fe
+    image: ghcr.io/home-assistant/home-assistant:2026.10.4@sha256:23f4dfbb69ce76315dbc4de7915504f1c2dcecd7ca2648113a493a385972e133
     restart: unless-stopped
     depends_on:
       home-assistant-config-seed:

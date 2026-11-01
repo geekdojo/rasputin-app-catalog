@@ -15,7 +15,7 @@
 # pin (ADR-0006 Decision 8).
 services:
   uptime-kuma:
-    image: louislam/uptime-kuma:2.5.3@sha256:3e24e96c89efff0e3a4b0698cbdd36c15ad3022371db57166e5588853002ee5c
+    image: louislam/uptime-kuma:2.5.9@sha256:e88415a90dd2f7efecdbc18de0490aff292764a3ac471531bf1d0481725591bd
     restart: unless-stopped
     volumes:
       - uptime-kuma-data:/app/data

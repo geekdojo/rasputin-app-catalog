@@ -3,7 +3,7 @@
 # provisional until the tile clears the hardware bench.
 services:
   romm:
-    image: rommapp/romm:5.2.0@sha256:3512f2ca455782f90247271bed23116e6bc675bc74e379be2c41696e607ab11e
+    image: rommapp/romm:5.4.1@sha256:8677fb7b81b1d3db20b849e989a1dadc2a11159e51eb34a2acdcb01102274edf
     restart: unless-stopped
     depends_on:
       - romm-db
@@ -23,7 +23,7 @@ services:
       - "8084:8080"
 
   romm-db:
-    image: mariadb:12.3.2@sha256:a02fe89cb597d4375812b2eac90cf9d0775d4686daa7f7cc750ebbcad7525bbc
+    image: mariadb:12.3.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
     restart: unless-stopped
     environment:
       MARIADB_DATABASE: romm
