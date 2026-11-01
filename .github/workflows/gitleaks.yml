@@ -29,4 +29,4 @@ jobs:
   gitleaks:
     permissions:
       contents: read
-    uses: geekdojo/.github/.github/workflows/gitleaks.yml@396ff3b84a3460f2fde3010b7fcf28f6171226ea # main
+    uses: geekdojo/.github/.github/workflows/gitleaks.yml@8a9d6a2711c1658ce79e0bdb8eae83d9b25a43f3 # main
