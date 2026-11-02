@@ -128,11 +128,9 @@ jobs:
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs: build
     runs-on: ubuntu-latest
-    # The leaf comes from the repository secrets RASPUTIN_CATALOG_LEAF_*. The
-    # `signing` environment holds no secret and has no branch policy (both
-    # deferred, geekdojo/geekdojo-brain#524). What keeps other refs from
-    # signing is the ref check in `if:` above, and it is only as strong as the
-    # copy of this file on the dispatched ref.
+    # The leaf comes from the repository secrets RASPUTIN_CATALOG_LEAF_*. Only
+    # main pushes and main dispatches reach this job (the `if:` above,
+    # geekdojo/geekdojo-brain#524).
     environment: signing
     permissions:
       contents: write # create the release
