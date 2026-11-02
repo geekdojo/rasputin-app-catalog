@@ -4,5 +4,7 @@
   "sourceAvailable": [],
   "copyleft": [
     "GPL-3.0-or-later"
-  ]
+  ],
+  "appFixableCeiling": 18,
+  "acceptedReason": "TEMPORARY, until geekdojo/geekdojo-brain#606. Renovate #78 pinned this tile to human-system 1.0.3 (10 app-level fixable), but the compose is still the 0.3.3 Postgres shape and 1.0.3's secrets-init refuses --pgdata, so the tile could not start. #82 restores 0.3.3, the image the live catalog-v29 already ships, so this adds no exposure in the field. The 8 extra are 4 Go stdlib CVEs (CVE-2026-111943, CVE-2026-78667, CVE-2026-78669, CVE-2026-97031) in the human-system and healthcheck binaries, built with Go 1.27.1 and fixed in 1.27.2/1.27.3. #606's v1.x SQLite tile removes this ceiling."
 }
