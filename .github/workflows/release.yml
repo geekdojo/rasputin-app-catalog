@@ -128,12 +128,9 @@ jobs:
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs: build
     runs-on: ubuntu-latest
-    # The catalog signing credential lives in this repository's `signing`
-    # ENVIRONMENT, not in repository- or organisation-level secrets
-    # (geekdojo/geekdojo-brain#524). Naming the environment here is what makes
-    # its secrets reachable at all, and what makes its deployment-branch policy
-    # apply, so the ref check above is backed by the platform and not only by
-    # this file.
+    # The leaf comes from the repository secrets RASPUTIN_CATALOG_LEAF_*. Only
+    # main pushes and main dispatches reach this job (the `if:` above,
+    # geekdojo/geekdojo-brain#524).
     environment: signing
     permissions:
       contents: write # create the release
