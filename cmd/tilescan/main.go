@@ -47,7 +47,8 @@ func main() {
 	}
 
 	if *baseline != "" {
-		os.Exit(compareAgainst(*baseline, tiles))
+		c := comparer{scan: scan.Scan, imagesAt: imagesAtRef, ceiling: acceptedCeiling}
+		os.Exit(c.compareAgainst(*baseline, tiles))
 	}
 
 	failures := 0
@@ -212,9 +213,21 @@ func shippingTiles(root string) ([]tile, error) {
 	return out, nil
 }
 
+// scanFunc is the shape of scan.Scan. The comparison takes it as a
+// collaborator so the pairing logic can be tested without pulling images.
+type scanFunc func(tile, image string) (scan.Provenance, []scan.Vuln, error)
+
+// comparer holds the baseline gate's collaborators. main wires the real ones:
+// scan.Scan, imagesAtRef and acceptedCeiling.
+type comparer struct {
+	scan     scanFunc
+	imagesAt func(ref, id string) ([]string, error)
+	ceiling  func(id string) (int, bool)
+}
+
 // compareAgainst is the gate that makes unattended updates safe.
 //
-// It scans the OLD and the NEW pin of every changed tile IN THE SAME RUN, and
+// It scans the OLD and the NEW pin of every changed image IN THE SAME RUN, and
 // fails only if the app's own fixable count went UP. Two properties matter:
 //
 //   - Same run means the same CVE database for both sides. Comparing against a
@@ -229,10 +242,10 @@ func shippingTiles(root string) ([]tile, error) {
 // A ratchet, not an absolute bar: 169 app-level findings across five tiles is
 // today's floor, so "no known vulnerabilities" would be a permanently red build.
 // This says instead: an update may not make things worse.
-func compareAgainst(ref string, tiles []tile) int {
+func (c comparer) compareAgainst(ref string, tiles []tile) int {
 	worse, checked := 0, 0
 	for _, t := range tiles {
-		oldImages, err := imagesAtRef(ref, t.id)
+		oldImages, err := c.imagesAt(ref, t.id)
 		if err != nil || len(oldImages) == 0 {
 			// A NEW TILE IS NOT A REGRESSION. Counting it as one made this gate
 			// unsatisfiable for the thing the intake pipeline exists to produce:
@@ -243,23 +256,27 @@ func compareAgainst(ref string, tiles []tile) int {
 			// Scan it in full and REPORT, so a reviewer sees the numbers they are
 			// being asked to accept. Fail only on what is wrong in absolute terms.
 			checked++
-			worse += reportNewTile(t)
+			worse += c.reportNewTile(t)
 			continue
 		}
-		for i, img := range t.images {
-			if i >= len(oldImages) || oldImages[i] == img {
-				continue // unchanged pin: nothing to compare
-			}
+		changes, added := pairImages(oldImages, t.images)
+		for _, img := range added {
+			// A repository the tile did not carry before has no old pin to
+			// ratchet against, so it is treated exactly as a new tile's image.
 			checked++
-			_, newV, err1 := scan.Scan(t.id, img)
-			_, oldV, err2 := scan.Scan(t.id, oldImages[i])
+			worse += c.reportNewImage(t.id, img)
+		}
+		for _, ch := range changes {
+			checked++
+			_, newV, err1 := c.scan(t.id, ch.now)
+			_, oldV, err2 := c.scan(t.id, ch.was)
 			if err1 != nil || err2 != nil {
 				fmt.Printf("  x %-18s scan failed (%v / %v)\n", t.id, err1, err2)
 				worse++
 				continue
 			}
 			was, now := appFixable(oldV), appFixable(newV)
-			if ceiling, ok := acceptedCeiling(t.id); ok && now <= ceiling && now > was {
+			if ceiling, ok := c.ceiling(t.id); ok && now <= ceiling && now > was {
 				fmt.Printf("  ~ %-18s app-level fixable %d → %d, within the recorded ceiling of %d\n", t.id, was, now, ceiling)
 				continue
 			}
@@ -286,6 +303,80 @@ func compareAgainst(ref string, tiles []tile) int {
 	return 0
 }
 
+// pinChange is one image whose pin moved: the old reference and the new one.
+type pinChange struct{ was, now string }
+
+// pairImages matches a tile's old pins to its new pins by image repository.
+//
+// Pairing by position in the sorted list was wrong: a tile that runs the same
+// image twice (an app plus a one-shot job on its database image) shifts every
+// index after the duplicate, so unrelated images were compared — a false
+// regression where they differ, and a silently skipped image at the end.
+//
+// Pins are compared as sets, because a second copy of an image the tile already
+// ran adds nothing to scan. Each new pin not in the old set is paired with an
+// old pin of the same repository that went away; failing that, with an old pin
+// of that repository that is still present (a second, different tag). A pin
+// whose repository the tile never carried is returned in added.
+func pairImages(oldImages, newImages []string) (changes []pinChange, added []string) {
+	oldSet, newSet := pinSet(oldImages), pinSet(newImages)
+	removed := map[string][]string{} // repository → old pins no longer present
+	kept := map[string][]string{}    // repository → old pins still present
+	for _, img := range sortedKeys(oldSet) {
+		r := repository(img)
+		if newSet[img] {
+			kept[r] = append(kept[r], img)
+		} else {
+			removed[r] = append(removed[r], img)
+		}
+	}
+	for _, img := range sortedKeys(newSet) {
+		if oldSet[img] {
+			continue // unchanged pin: nothing to compare
+		}
+		r := repository(img)
+		switch {
+		case len(removed[r]) > 0:
+			changes = append(changes, pinChange{was: removed[r][0], now: img})
+			removed[r] = removed[r][1:]
+		case len(kept[r]) > 0:
+			changes = append(changes, pinChange{was: kept[r][0], now: img})
+		default:
+			added = append(added, img)
+		}
+	}
+	return changes, added
+}
+
+func pinSet(imgs []string) map[string]bool {
+	set := make(map[string]bool, len(imgs))
+	for _, img := range imgs {
+		set[img] = true
+	}
+	return set
+}
+
+func sortedKeys(set map[string]bool) []string {
+	keys := make([]string, 0, len(set))
+	for k := range set {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// repository strips the digest and tag from an image reference. A colon before
+// the last slash is a registry port, not a tag.
+func repository(img string) string {
+	if at := strings.Index(img, "@"); at >= 0 {
+		img = img[:at]
+	}
+	if colon := strings.LastIndex(img, ":"); colon > strings.LastIndex(img, "/") {
+		img = img[:colon]
+	}
+	return img
+}
+
 // acceptedCeiling reads a reviewed exception from the checked-in provenance.
 // Absent or unreasoned means no exception, which is the safe default.
 func acceptedCeiling(id string) (int, bool) {
@@ -303,36 +394,42 @@ func acceptedCeiling(id string) (int, bool) {
 // reportNewTile scans a tile that has no baseline and prints what a reviewer is
 // being asked to take on. It returns 1 only for a genuine defect — a
 // source-available license — never for the tile merely being new.
-func reportNewTile(t tile) int {
+func (c comparer) reportNewTile(t tile) int {
 	bad := 0
 	for _, img := range t.images {
-		prov, vulns, err := scan.Scan(t.id, img)
-		if err != nil {
-			fmt.Printf("  x %-18s %v\n", t.id, err)
-			bad++
-			continue
-		}
-		app, base, unfixed := 0, 0, 0
-		for _, v := range vulns {
-			switch {
-			case !v.Fixable():
-				unfixed++
-			case v.AppLevel():
-				app++
-			default:
-				base++
-			}
-		}
-		fmt.Printf("  + %-18s NEW — %d app-level fixable, %d base-image, %d unfixed\n", t.id, app, base, unfixed)
-		if len(prov.SourceAvailable) > 0 {
-			fmt.Printf("  x %-18s SOURCE-AVAILABLE license present: %s\n", t.id, strings.Join(prov.SourceAvailable, ", "))
-			bad++
-		}
-		if len(prov.Copyleft) > 0 {
-			fmt.Printf("  · %-18s copyleft present: %s\n", t.id, strings.Join(prov.Copyleft[:min(4, len(prov.Copyleft))], ", "))
-		}
-		fmt.Printf("  · %-18s before merging: run `go run ./cmd/tilescan -write` and review provenance/%s.json\n", t.id, t.id)
+		bad += c.reportNewImage(t.id, img)
 	}
+	return bad
+}
+
+// reportNewImage scans one image that has no old pin to compare against.
+func (c comparer) reportNewImage(id, img string) int {
+	prov, vulns, err := c.scan(id, img)
+	if err != nil {
+		fmt.Printf("  x %-18s %v\n", id, err)
+		return 1
+	}
+	bad := 0
+	app, base, unfixed := 0, 0, 0
+	for _, v := range vulns {
+		switch {
+		case !v.Fixable():
+			unfixed++
+		case v.AppLevel():
+			app++
+		default:
+			base++
+		}
+	}
+	fmt.Printf("  + %-18s NEW — %d app-level fixable, %d base-image, %d unfixed\n", id, app, base, unfixed)
+	if len(prov.SourceAvailable) > 0 {
+		fmt.Printf("  x %-18s SOURCE-AVAILABLE license present: %s\n", id, strings.Join(prov.SourceAvailable, ", "))
+		bad++
+	}
+	if len(prov.Copyleft) > 0 {
+		fmt.Printf("  · %-18s copyleft present: %s\n", id, strings.Join(prov.Copyleft[:min(4, len(prov.Copyleft))], ", "))
+	}
+	fmt.Printf("  · %-18s before merging: run `go run ./cmd/tilescan -write` and review provenance/%s.json\n", id, id)
 	return bad
 }
 
