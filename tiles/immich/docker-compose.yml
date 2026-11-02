@@ -6,14 +6,20 @@ services:
     image: ghcr.io/immich-app/immich-server:v3.3.5@sha256:485d546a2e31d6a8b4db8423fcba5c109de8c218d93410af115fd1ccfc4352a6
     restart: unless-stopped
     depends_on:
-      - redis
-      - database
+      redis:
+        condition: service_started
+      database:
+        condition: service_started
+      # immich-server starts only once the bridge below has put the database
+      # on the platform's password.
+      immich-db-bridge:
+        condition: service_completed_successfully
     environment:
       DB_HOSTNAME: database
       DB_USERNAME: immich
       DB_DATABASE_NAME: immich
       # Internal to this stack's network — postgres publishes no port.
-      DB_PASSWORD: immich
+      DB_PASSWORD: "${secret:db-password}"
       REDIS_HOSTNAME: redis
     volumes:
       - immich-upload:/data
@@ -35,11 +41,89 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: immich
-      POSTGRES_PASSWORD: immich
+      # Postgres applies this only when it first creates its data directory.
+      # An install from before this tile used the platform's secrets still has
+      # the old published password; immich-db-bridge moves it.
+      POSTGRES_PASSWORD: "${secret:db-password}"
       POSTGRES_DB: immich
       POSTGRES_INITDB_ARGS: "--data-checksums"
     volumes:
       - immich-db:/var/lib/postgresql/data
+
+  # One-shot, on every deploy, restart and restore (`restart: "no"`, and
+  # immich-server waits for it to exit 0). It moves a database still on the
+  # password this tile used to publish onto the platform's:
+  #   1. Wait for the database to answer, at most 120 seconds. The agent's
+  #      default deploy budget for this tile is 300 seconds, so a database that
+  #      never answers fails the deploy with this bridge's own sentence first.
+  #   2. If the immich role logs in with the platform's password, do nothing.
+  #   3. Otherwise log in as immich (the database's superuser) with the
+  #      published legacy password and change it to the platform's.
+  #   4. Fail, and so keep immich-server stopped, when neither password is
+  #      accepted or anything else goes wrong. Each failure prints its own
+  #      sentence.
+  # Passwords reach psql only through PGPASSWORD, and the new one reaches the
+  # server on stdin from the shell's printf builtin: never a command line.
+  #
+  # LEGACY_DB_PASSWORD is the password this tile published before it used the
+  # platform's secrets. It is public, and grants nothing once a database has
+  # been moved. Shipping it is the recorded R4 exception in EXCEPTIONS.md.
+  #
+  # Reverting the app to its previous version after this upgrade leaves
+  # immich-server unable to log in to its database: the database keeps the
+  # platform's password and the previous version has no bridge. The recovery
+  # is to upgrade again; the bridge then finds the platform's password in place.
+  immich-db-bridge:
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23
+    restart: "no"
+    depends_on:
+      - database
+    environment:
+      POSTGRES_PASSWORD: "${secret:db-password}"
+      LEGACY_DB_PASSWORD: immich
+    command:
+      - sh
+      - -c
+      - |
+        set -u
+        deadline=$$(( $$(date +%s) + 120 ))
+        until pg_isready -q -h database -t 5; do
+          if [ "$$(date +%s)" -ge "$$deadline" ]; then
+            echo "The database did not answer within 120 seconds, so immich will not start."
+            exit 1
+          fi
+          sleep 1
+        done
+        # login PASSWORD: 0 logged in, 1 password refused (28P01), 2 any other
+        # failure.
+        login() {
+          err=$$(PGPASSWORD="$$1" psql -w -X -q -h database -U immich -d immich -c 'SELECT 1' 2>&1 >/dev/null) && return 0
+          case "$$err" in *"password authentication failed"*|*28P01*) return 1 ;; esac
+          return 2
+        }
+        other() {
+          echo "Could not log in to the database for a reason other than a refused password, so immich will not start."
+          exit 1
+        }
+        login "$$POSTGRES_PASSWORD"
+        case $$? in
+          0) echo "The database already uses the platform's password."; exit 0 ;;
+          2) other ;;
+        esac
+        login "$$LEGACY_DB_PASSWORD"
+        case $$? in
+          1) echo "The database refused both the platform's and the published legacy password, so immich will not start."; exit 1 ;;
+          2) other ;;
+        esac
+        if ! printf "ALTER ROLE immich PASSWORD '%s';\n" "$$POSTGRES_PASSWORD" | PGPASSWORD="$$LEGACY_DB_PASSWORD" psql -w -X -q -v ON_ERROR_STOP=1 -h database -U immich -d immich >/dev/null 2>&1; then
+          echo "Logged in to the database but could not change its password, so immich will not start."
+          exit 1
+        fi
+        if ! login "$$POSTGRES_PASSWORD"; then
+          echo "Changed the database's password, but the immich role still refuses the platform's password, so immich will not start."
+          exit 1
+        fi
+        echo "Moved the database from the published legacy password to the platform's."
 
 volumes:
   immich-upload:

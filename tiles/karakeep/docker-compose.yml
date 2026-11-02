@@ -9,9 +9,10 @@ services:
       - meilisearch
     environment:
       MEILI_ADDR: http://meilisearch:7700
-      # Both must be replaced with unique values before this tile ships.
-      NEXTAUTH_SECRET: change-me-on-first-run
-      MEILI_MASTER_KEY: change-me-on-first-run
+      # Both are the platform's per-install secrets. The search key is the
+      # same name as in the meilisearch service, so both get the same value.
+      NEXTAUTH_SECRET: "${secret:nextauth-secret}"
+      MEILI_MASTER_KEY: "${secret:meili-master-key}"
       NEXTAUTH_URL: http://localhost:3000
       DISABLE_NEW_RELEASE_CHECK: "true"
       # Bookmark crawling wants a headless Chrome sidecar upstream ships
@@ -27,7 +28,7 @@ services:
     restart: unless-stopped
     environment:
       MEILI_NO_ANALYTICS: "true"
-      MEILI_MASTER_KEY: change-me-on-first-run
+      MEILI_MASTER_KEY: "${secret:meili-master-key}"
     volumes:
       - karakeep-meili:/meili_data
 

@@ -18,7 +18,8 @@
     }
   ],
   "requires": [
-    "tile.web-port"
+    "tile.web-port",
+    "tile.secrets"
   ],
   "volumes": [
     {
