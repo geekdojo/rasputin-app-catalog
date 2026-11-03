@@ -182,6 +182,17 @@ func BuildBundle(root string, version int, publishedAt, source string) (Bundle, 
 			if problems := compose.ClassificationProblems(l.Tile, stack); len(problems) > 0 {
 				return Bundle{}, fmt.Errorf("tile %q: refusing to publish an unclassified corpus: %s", id, problems[0])
 			}
+
+			// Literal secrets (tile-secrets.md R4), refused on the publish
+			// path for the same reason as volume coverage above: a dispatch
+			// that skipped tilelint must not sign a password into the catalog.
+			literals, err := compose.LiteralSecretProblems(id, []byte(l.Compose))
+			if err != nil {
+				return Bundle{}, fmt.Errorf("tile %q: %w", id, err)
+			}
+			if len(literals) > 0 {
+				return Bundle{}, fmt.Errorf("tile %q: refusing to publish a literal secret: %s", id, literals[0])
+			}
 		}
 		tiles = append(tiles, bt)
 		published = append(published, PublishedTile{Tile: l.TileJSON, BundleTile: bt})

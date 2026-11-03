@@ -1,7 +1,9 @@
 // Package legacybridge holds the tests of the one-shot bridge services in the
 // romm and immich tiles (romm-db-bridge, immich-db-bridge). It has no code of
 // its own: the bridges are shell inside the tile composes.
-// It also holds the karakeep test that its database lives in its volume.
+// It also holds the karakeep test that its database lives in its volume, and
+// the vaultwarden tests that sign-ups are closed and the first account comes
+// through the admin page invite (#552).
 //
 // Both databases apply their password only when they first create their data
 // directory, so an install upgraded from a catalog version that shipped
@@ -23,7 +25,9 @@
 //     restored, revert to the previous compose and recovery by upgrading
 //     again, a database on unknown passwords, and a database that never
 //     answers. A karakeep test checks its database lands in its volume and
-//     survives a container recreate (#885). They need a running Docker daemon and the registries, and fail
+//     survives a container recreate (#885). The vaultwarden tests bring up a
+//     fresh install, with and without the owner's admin token, and an upgrade
+//     from the catalog v32 compose with an account and an item in it. They need a running Docker daemon and the registries, and fail
 //     rather than skip without them. Run them from the repository root with
 //
 //     go test -tags functional ./internal/legacybridge/

@@ -124,6 +124,16 @@ func checkTile(root, id string, probe bool) (problems, notices []string, unverif
 		return append(problems, err.Error()), nil, false
 	}
 	problems = append(problems, compose.ClassificationProblems(tile, stack)...)
+
+	// Literal secrets (tile-secrets.md R4): the same check BuildBundle runs,
+	// so a tile that cannot be linted cannot be published either.
+	literals, err := compose.LiteralSecretProblems(id, []byte(l.Compose))
+	if err != nil {
+		return append(problems, err.Error()), nil, false
+	}
+	for _, p := range literals {
+		problems = append(problems, seeGuide(p, literalGuideAnchor))
+	}
 	if err := tileschema.ValidateTileSafety(tile, facts); err != nil {
 		problems = append(problems, err.Error())
 		// The actionable half. Grant strings are a derived vocabulary, so
@@ -175,7 +185,16 @@ func withSecretsContract(msg string, t tileschema.Tile, composeYAML string) stri
 		len(t.OperatorSecrets) == 0 {
 		return msg
 	}
-	return msg + "\n      See " + secretsContractURL + " for how a tile declares its secrets."
+	return seeGuide(msg, "")
+}
+
+// literalGuideAnchor is R4's heading in the secrets guide.
+const literalGuideAnchor = "#r4-never-ship-a-literal"
+
+// seeGuide appends the pointer to the secrets guide, at anchor ("" for the
+// top), as a sentence on its own line after the problem it explains.
+func seeGuide(msg, anchor string) string {
+	return msg + "\n      See " + secretsContractURL + anchor + " for how a tile declares its secrets."
 }
 
 // unverifiablePrivilege is what a PREVIEW tile with no compose gets.

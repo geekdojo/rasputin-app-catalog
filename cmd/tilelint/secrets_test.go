@@ -83,7 +83,9 @@ func TestNonSecretRefusalCarriesNoLink(t *testing.T) {
 	root := t.TempDir()
 	tile := baseTile("plain")
 	tile.Tagline = ""
-	writeTile(t, root, "plain", tile, secretCompose("not-a-secret"))
+	// An empty value: a literal under DB_PASSWORD is now itself a secret
+	// refusal (R4, #552), which would rightly carry the link.
+	writeTile(t, root, "plain", tile, secretCompose(""))
 
 	problems, _, _ := checkTile(root, "plain", false)
 	if !strings.Contains(strings.Join(problems, "\n"), "tagline is required") {

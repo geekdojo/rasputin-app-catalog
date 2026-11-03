@@ -111,9 +111,16 @@ Never write a secret's value into the compose or `tile.json`: no `change-me`, no
 password, no example key, and no empty string standing in for a value. Use a token (R1).
 
 Reason: this repository is public, and every cluster installs the same files. A value written
-here is the same on every cluster and readable by anyone. Reviewers enforce this rule today;
-tilelint will refuse literals once
-[geekdojo/geekdojo-brain#552](https://github.com/geekdojo/geekdojo-brain/issues/552) lands.
+here is the same on every cluster and readable by anyone.
+
+tilelint, and the build that publishes the catalog, refuse a non-empty literal value under a
+secret-named key in a service's `environment:`, in either the mapping or the list spelling, and
+through YAML anchors and merge keys. A key is secret-named when, ignoring case, it contains
+`PASSWORD`, `PASSWD`, `PASSPHRASE`, `SECRET` or `TOKEN`, or has `KEY`, `PWD` or `PASS` as a whole
+`_`-separated part, such as `API_KEY` or `SMTP_PASS`. A value holding a token passes. The one
+exemption is the three bridge inputs approved as EX-1 in [`EXCEPTIONS.md`](../EXCEPTIONS.md).
+Reviewers still check what tilelint cannot see: an empty value standing in for a secret, a
+literal under a key that is not secret-named, and anything outside `environment:`.
 
 Source of record (Geekdojo-internal, may not be public): Auth decision 21,
 [auth methodology](https://github.com/geekdojo/geekdojo-brain/blob/main/projects/rasputin/design/security/auth-methodology.md)
@@ -167,6 +174,10 @@ it. Three things go together:
    Reason: a control plane that knows `tile.secrets` but not operator secrets would see an
    ordinary token, create a random value for it, and hand that to the app as the owner's key. With
    the capability listed, that control plane refuses the tile instead.
+
+An operator-supplied secret also fits a credential the owner must know in order to use the app,
+such as an admin page token: a value the platform created could not be read back, so the owner
+could never type it.
 
 What the owner and the app see:
 
@@ -400,6 +411,7 @@ pointing back to this guide. The secrets refusals, and the fix for each:
 | `operatorSecrets[<i>] "<name>": duplicate name` | Declare each operator-supplied secret once (R6). |
 | `operatorSecrets[<i>] "<name>": label is required` | Give the declaration a `label`, the text the owner is shown (R6). |
 | `operatorSecrets[<i>] "<name>": the compose never uses ${secret:<name>}` | Use the declared name as a token in the compose's `environment:`, or remove the declaration. Check for a typo: a token whose name differs from the declaration is a derived secret, not the owner's (R6). |
+| `Service "<service>" in docker-compose.yml gives <KEY> a literal value` | Replace the value with a token, `${secret:<name>}` (R1, R4), and add `tile.secrets` to `requires` (R2). If only the owner can know the value, declare it operator-supplied (R6). |
 
 The token refusals (the second to fourth rows) are prefixed with `docker-compose.yml: byte <n>:`,
 where `<n>` is how far into the file the bad token starts, counted in bytes from the beginning.
