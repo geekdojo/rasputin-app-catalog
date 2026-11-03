@@ -421,6 +421,9 @@ func (s *stack) dbVolume() string { return s.project + "_" + s.bt.tile + "-db" }
 func (s *stack) assertNoValueLeaked() {
 	t := s.t
 	for _, svc := range []string{s.bt.bridge, s.bt.db} {
+		if svc == "" { // a tile without a bridge
+			continue
+		}
 		out, err := exec.Command("docker", "ps", "-a", "-q",
 			"--filter", "label=com.docker.compose.project="+s.project,
 			"--filter", "label=com.docker.compose.service="+svc).Output()

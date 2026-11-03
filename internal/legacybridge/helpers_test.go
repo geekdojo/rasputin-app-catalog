@@ -37,6 +37,7 @@ type service struct {
 	DependsOn   yaml.Node         `yaml:"depends_on"`
 	Environment map[string]string `yaml:"environment"`
 	Command     []string          `yaml:"command"`
+	Volumes     []string          `yaml:"volumes"`
 }
 
 func parseCompose(t *testing.T, text string) composeFile {

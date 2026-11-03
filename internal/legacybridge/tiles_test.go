@@ -55,6 +55,18 @@ func TestKarakeepKeysAreTokens(t *testing.T) {
 	assertNoPlaceholderText(t, "karakeep", "change-me", "must be replaced")
 }
 
+// TC-521-21 (unit part): karakeep's database is ${DATA_DIR}/db.db, so DATA_DIR
+// must be the directory the karakeep-data volume is mounted on (#885).
+func TestKarakeepDatabaseInVolume(t *testing.T) {
+	k := parseCompose(t, readCompose(t, "karakeep")).Services["karakeep"]
+	if got := k.Environment["DATA_DIR"]; got != "/data" {
+		t.Errorf("karakeep DATA_DIR = %q, want %q", got, "/data")
+	}
+	if !slices.Contains(k.Volumes, "karakeep-data:/data") {
+		t.Errorf("karakeep volumes %v lack karakeep-data:/data", k.Volumes)
+	}
+}
+
 // TC-521-03: romm's DB, root and auth secrets are tokens; the published
 // passwords appear only as the bridge's LEGACY_* inputs.
 func TestRommSecretsAreTokens(t *testing.T) {

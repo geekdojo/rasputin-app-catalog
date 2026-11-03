@@ -14,6 +14,8 @@ services:
       NEXTAUTH_SECRET: "${secret:nextauth-secret}"
       MEILI_MASTER_KEY: "${secret:meili-master-key}"
       NEXTAUTH_URL: http://localhost:3000
+      # The database is ${DATA_DIR}/db.db, so it lives in the volume only with this set, as in upstream's compose.
+      DATA_DIR: /data
       DISABLE_NEW_RELEASE_CHECK: "true"
       # Bookmark crawling wants a headless Chrome sidecar upstream ships
       # separately; without it link previews degrade but the app runs.
