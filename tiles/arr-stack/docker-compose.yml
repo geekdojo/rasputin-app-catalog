@@ -22,7 +22,7 @@ services:
       - sonarr-config:/config
       - arr-media:/media
     ports:
-      - "8989:8989"
+      - "127.0.0.1:8989:8989"
 
   radarr:
     image: ghcr.io/linuxserver/radarr:6.3.0.10514-ls313@sha256:a45b5ab0f850f39edb4cc9c95bbd967b52ddc3d4574a4dfb45561177db6c88f4

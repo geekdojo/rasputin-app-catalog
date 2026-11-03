@@ -1,5 +1,5 @@
-github.com/geekdojo/rasputin-control-plane/tileschema v1.5.0 h1:4jdLonPDLz43BZwoJfpmfEPY7d6mgxRgZadHgZ4Xfls=
-github.com/geekdojo/rasputin-control-plane/tileschema v1.5.0/go.mod h1:N0DgT7x7kMC0h0wVDu6UI2v50sz2itdsA82i7BOl0Lk=
+github.com/geekdojo/rasputin-control-plane/tileschema v1.5.1-0.20261103214454-fdf83e4c9f9a h1:XPQU1rTQydhSlRTxlPcIHFUPfopd2LX9N9WIEB32Xyg=
+github.com/geekdojo/rasputin-control-plane/tileschema v1.5.1-0.20261103214454-fdf83e4c9f9a/go.mod h1:N0DgT7x7kMC0h0wVDu6UI2v50sz2itdsA82i7BOl0Lk=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=

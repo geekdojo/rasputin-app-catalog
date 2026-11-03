@@ -11,7 +11,7 @@ services:
     volumes:
       - mealie-data:/app/data
     ports:
-      - "9000:9000"
+      - "127.0.0.1:9000:9000"
 
 volumes:
   mealie-data:

@@ -193,6 +193,15 @@ func BuildBundle(root string, version int, publishedAt, source string) (Bundle, 
 			if len(literals) > 0 {
 				return Bundle{}, fmt.Errorf("tile %q: refusing to publish a literal secret: %s", id, literals[0])
 			}
+
+			// The web port publishes on loopback only, so the node proxy is
+			// its front door (geekdojo/geekdojo-brain#551). The control plane's
+			// reader never runs this rule, so the publisher is the only place
+			// it holds. The wrapper is neutral: the refusal names its own
+			// failure, off loopback or not published.
+			if err := tileschema.ValidateWebPortBind(l.Tile, facts); err != nil {
+				return Bundle{}, fmt.Errorf("tile %q: %w", id, err)
+			}
 		}
 		tiles = append(tiles, bt)
 		published = append(published, PublishedTile{Tile: l.TileJSON, BundleTile: bt})

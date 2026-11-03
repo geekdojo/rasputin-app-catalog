@@ -134,6 +134,12 @@ func checkTile(root, id string, probe bool) (problems, notices []string, unverif
 	for _, p := range literals {
 		problems = append(problems, seeGuide(p, literalGuideAnchor))
 	}
+	// The web port on loopback: the same rule BuildBundle refuses a publish on
+	// (geekdojo/geekdojo-brain#551), printed verbatim because it already says
+	// what to write.
+	if err := tileschema.ValidateWebPortBind(tile, facts); err != nil {
+		problems = append(problems, err.Error())
+	}
 	if err := tileschema.ValidateTileSafety(tile, facts); err != nil {
 		problems = append(problems, err.Error())
 		// The actionable half. Grant strings are a derived vocabulary, so

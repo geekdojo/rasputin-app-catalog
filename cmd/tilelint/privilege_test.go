@@ -157,6 +157,8 @@ func TestLint_OverDeclarationIsANoticeNotAProblem(t *testing.T) {
 	writeTile(t, root, "over", tile, `services:
   app:
     image: ghcr.io/example/app@`+testDigest+`
+    ports:
+      - "127.0.0.1:8080:80"
 `)
 
 	problems, notices, _ := checkTile(root, "over", false)

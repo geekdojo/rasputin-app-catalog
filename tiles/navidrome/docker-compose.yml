@@ -12,7 +12,7 @@ services:
       - navidrome-data:/data
       - navidrome-music:/music:ro
     ports:
-      - "4533:4533"
+      - "127.0.0.1:4533:4533"
 
 volumes:
   navidrome-data:

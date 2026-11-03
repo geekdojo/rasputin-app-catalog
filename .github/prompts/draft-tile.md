@@ -33,6 +33,11 @@ Exactly two files, in `tiles/<id>/`:
   reaches the platform's own trust chain — `/etc/rasputin`, `/var/lib/rasputin` and
   anything containing them, including `/`, `/etc` and `/var/lib`. Only
   `/var/lib/rasputin/apps/` is carved out.
+- Publish the web port on loopback only: `"127.0.0.1:<published>:<container>"`. The
+  node's proxy is the app's front door, and tilelint refuses a web port published on
+  any other address, or not published at all unless the stack uses host networking.
+  Every other port keeps the plain `"HOST:CONTAINER"` form. Those two are the only
+  `ports:` forms tilelint reads.
 - `restart: unless-stopped`.
 - Sane defaults baked in for settings that are not secrets, so a fresh install works
   without editing.
@@ -44,7 +49,8 @@ Exactly two files, in `tiles/<id>/`:
 
 **`tile.json`** — metadata matching the schema in `tileschema`.
 - `id` must equal the directory name and be a DNS-1123 label.
-- `ports[]`: exactly one `primary` if the app has a web UI.
+- `ports[]`: at most one port marked `web`, the one serving the app's web UI. An app
+  with no web UI marks none.
 - `arch`: what the registry **actually publishes**, not what the request claims.
 - `ramFloorMB`: from upstream's documented minimum. If undocumented, say so in the PR.
 - `status`: **always `preview`**. A tile becomes `available` only after the hardware

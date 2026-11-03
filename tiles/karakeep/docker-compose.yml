@@ -23,7 +23,7 @@ services:
     volumes:
       - karakeep-data:/data
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
 
   meilisearch:
     image: getmeili/meilisearch:v1.56.1@sha256:b7ba431bf6f9b26cc86132798f3640964147a699cf23f026b74c6c05dbb1d60d

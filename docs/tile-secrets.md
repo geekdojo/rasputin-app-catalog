@@ -272,7 +272,7 @@ services:
     volumes:
       - feeds-data:/app/data
     ports:
-      - "8200:8000"
+      - "127.0.0.1:8200:8000"
 
 volumes:
   feeds-data:
@@ -367,7 +367,7 @@ services:
     volumes:
       - recipes-data:/app/data
     ports:
-      - "9000:9000"
+      - "127.0.0.1:9000:9000"
 
   db:
     image: postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685

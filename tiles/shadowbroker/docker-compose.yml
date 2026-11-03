@@ -42,7 +42,7 @@ services:
     environment:
       BACKEND_URL: http://backend:8000
     ports:
-      - "3200:3000"
+      - "127.0.0.1:3200:3000"
 
 volumes:
   shadowbroker-data:
