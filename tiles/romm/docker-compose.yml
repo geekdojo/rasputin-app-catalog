@@ -6,14 +6,19 @@ services:
     image: rommapp/romm:5.4.1@sha256:8677fb7b81b1d3db20b849e989a1dadc2a11159e51eb34a2acdcb01102274edf
     restart: unless-stopped
     depends_on:
-      - romm-db
+      romm-db:
+        condition: service_started
+      # romm starts only once the bridge below has put the database on the
+      # platform's passwords.
+      romm-db-bridge:
+        condition: service_completed_successfully
     environment:
       DB_HOST: romm-db
       DB_NAME: romm
       DB_USER: romm
       # Internal to this stack's network — mariadb publishes no port.
-      DB_PASSWD: romm
-      ROMM_AUTH_SECRET_KEY: change-me-on-first-run
+      DB_PASSWD: "${secret:db-password}"
+      ROMM_AUTH_SECRET_KEY: "${secret:auth-secret-key}"
     volumes:
       - romm-resources:/romm/resources
       - romm-config:/romm/config
@@ -28,10 +33,99 @@ services:
     environment:
       MARIADB_DATABASE: romm
       MARIADB_USER: romm
-      MARIADB_PASSWORD: romm
-      MARIADB_ROOT_PASSWORD: romm-root
+      # MariaDB applies these two only when it first creates its data
+      # directory. An install from before this tile used the platform's
+      # secrets still has the old published passwords; romm-db-bridge moves it.
+      MARIADB_PASSWORD: "${secret:db-password}"
+      MARIADB_ROOT_PASSWORD: "${secret:db-root-password}"
     volumes:
       - romm-db:/var/lib/mysql
+
+  # One-shot, on every deploy, restart and restore (`restart: "no"`, and romm
+  # waits for it to exit 0). It moves a database still on the passwords this
+  # tile used to publish onto the platform's:
+  #   1. Wait for romm-db to answer, at most 120 seconds. The agent's default
+  #      deploy budget for this tile is 300 seconds, so a database that never
+  #      answers fails the deploy with this bridge's own sentence first.
+  #   2. If the romm account logs in with the platform's password, do nothing.
+  #   3. Otherwise log in as root with the platform's root password, then with
+  #      the published legacy one, and change root and romm to the platform's
+  #      passwords. romm's account is changed last, so step 2 passing means
+  #      every account was changed.
+  #   4. Fail, and so keep romm stopped, when neither root password is accepted
+  #      or anything else goes wrong. Each failure prints its own sentence.
+  # Passwords reach the client only through MYSQL_PWD, and the new ones reach
+  # the server on stdin from the shell's printf builtin: never a command line.
+  #
+  # LEGACY_* are the passwords this tile published before it used the
+  # platform's secrets. They are public, and grant nothing once a database has
+  # been moved. Shipping them is the recorded R4 exception in EXCEPTIONS.md.
+  #
+  # Reverting the app to its previous version after this upgrade leaves romm
+  # unable to log in to its database: the database keeps the platform's
+  # passwords and the previous version has no bridge. The recovery is to
+  # upgrade again; the bridge then finds the platform's passwords in place.
+  romm-db-bridge:
+    image: mariadb:12.3.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+    restart: "no"
+    depends_on:
+      - romm-db
+    environment:
+      MARIADB_PASSWORD: "${secret:db-password}"
+      MARIADB_ROOT_PASSWORD: "${secret:db-root-password}"
+      LEGACY_DB_PASSWORD: romm
+      LEGACY_ROOT_PASSWORD: romm-root
+    command:
+      - sh
+      - -c
+      - |
+        set -u
+        deadline=$$(( $$(date +%s) + 120 ))
+        until mariadb-admin --protocol=tcp -h romm-db --connect-timeout=5 ping >/dev/null 2>&1; do
+          if [ "$$(date +%s)" -ge "$$deadline" ]; then
+            echo "The database did not answer within 120 seconds, so romm will not start."
+            exit 1
+          fi
+          sleep 1
+        done
+        # login USER PASSWORD: 0 logged in, 1 password refused (ERROR 1045),
+        # 2 any other failure.
+        login() {
+          err=$$(MYSQL_PWD="$$2" mariadb --protocol=tcp -h romm-db -u "$$1" -e 'SELECT 1' 2>&1 >/dev/null) && return 0
+          case "$$err" in *"ERROR 1045"*) return 1 ;; esac
+          return 2
+        }
+        other() {
+          echo "Could not log in to the database for a reason other than a refused password, so romm will not start."
+          exit 1
+        }
+        login romm "$$MARIADB_PASSWORD"
+        case $$? in
+          0) echo "The database already uses the platform's passwords."; exit 0 ;;
+          2) other ;;
+        esac
+        root_password=$$MARIADB_ROOT_PASSWORD
+        login root "$$root_password"
+        case $$? in
+          1)
+            root_password=$$LEGACY_ROOT_PASSWORD
+            login root "$$root_password"
+            case $$? in
+              1) echo "The database refused both the platform's and the published legacy root password, so romm will not start."; exit 1 ;;
+              2) other ;;
+            esac
+            ;;
+          2) other ;;
+        esac
+        if ! printf "ALTER USER 'root'@'localhost' IDENTIFIED BY '%s';\nALTER USER 'root'@'%%' IDENTIFIED BY '%s';\nALTER USER 'romm'@'%%' IDENTIFIED BY '%s';\n" "$$MARIADB_ROOT_PASSWORD" "$$MARIADB_ROOT_PASSWORD" "$$MARIADB_PASSWORD" | MYSQL_PWD="$$root_password" mariadb --protocol=tcp -h romm-db -uroot >/dev/null 2>&1; then
+          echo "Logged in to the database as root but could not change its passwords, so romm will not start."
+          exit 1
+        fi
+        if ! login romm "$$MARIADB_PASSWORD"; then
+          echo "Changed the database's passwords, but the romm account still refuses the platform's password, so romm will not start."
+          exit 1
+        fi
+        echo "Moved the database from the published legacy passwords to the platform's."
 
 volumes:
   romm-resources:

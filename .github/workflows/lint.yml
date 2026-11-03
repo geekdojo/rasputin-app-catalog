@@ -188,3 +188,10 @@ jobs:
           go-version: "1.27"
       - name: architecture claims match the registries
         run: go run ./cmd/tilelint -arch
+      # The romm and immich bridges run on their database images' own clients
+      # and entrypoints, and Renovate automerges bumps of those images. This
+      # brings each bridge up against the pinned images, so a bump that breaks
+      # one turns main red before the catalog is promoted. It pulls from the
+      # registries too, so it belongs here and not in a PR gate.
+      - name: database bridges against the pinned images
+        run: go test -tags functional ./internal/legacybridge/
