@@ -29,15 +29,11 @@
       "name": "hs-data",
       "backup": "state",
       "quiesce": "stop"
-    },
-    {
-      "name": "hs-secrets",
-      "backup": "critical",
-      "quiesce": "stop"
     }
   ],
   "requires": [
-    "tile.web-port"
+    "tile.web-port",
+    "tile.secrets"
   ],
   "icon": "🧬",
   "postInstall": "Open it and create your account on the first-run screen. Then bring your history in: the Import screen takes a bulk-import file, whose format the app itself serves at /.well-known/hs-import-schema.json, and the Documents screen takes lab reports."

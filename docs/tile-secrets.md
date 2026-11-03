@@ -127,9 +127,9 @@ create and keep it.
 
 Reason: there is one flow for every app. The tile declares what it needs, and the platform creates
 the value and keeps it. That is what lets backup, restore and rotation work the same way for every
-app. The human-system tile generates its secrets inside the app today; it is moving to tokens under
-[geekdojo/geekdojo-brain#606](https://github.com/geekdojo/geekdojo-brain/issues/606), and is not a
-pattern to copy.
+app. The human-system tile once generated its secret inside the app; since its v1.0.4 release it
+declares the key as a token instead
+([geekdojo/geekdojo-brain#606](https://github.com/geekdojo/geekdojo-brain/issues/606)).
 
 Source of record (Geekdojo-internal, may not be public): Auth decision 21,
 [geekdojo/geekdojo-brain#573](https://github.com/geekdojo/geekdojo-brain/issues/573) and
