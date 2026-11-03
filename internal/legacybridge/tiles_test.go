@@ -67,6 +67,15 @@ func TestKarakeepDatabaseInVolume(t *testing.T) {
 	}
 }
 
+// TC-521-22 (unit part): karakeep's meilisearch upgrades its index across
+// engine bumps, so a Renovate image bump does not crash-loop it.
+func TestKarakeepMeiliUpgradesItsIndex(t *testing.T) {
+	m := parseCompose(t, readCompose(t, "karakeep")).Services["meilisearch"]
+	if got := m.Environment["MEILI_UPGRADE_DB"]; got != "true" {
+		t.Errorf("karakeep meilisearch MEILI_UPGRADE_DB = %q, want %q", got, "true")
+	}
+}
+
 // TC-521-03: romm's DB, root and auth secrets are tokens; the published
 // passwords appear only as the bridge's LEGACY_* inputs.
 func TestRommSecretsAreTokens(t *testing.T) {
