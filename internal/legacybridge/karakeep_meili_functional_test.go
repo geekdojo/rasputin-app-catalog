@@ -43,7 +43,9 @@ func withMeili(t *testing.T, head, image string, upgrade bool) string {
 }
 
 // meiliCall runs curl inside the meilisearch container against its own API,
-// with the container's own master key, so the key is on no command line.
+// with the container's own master key, so the key stays off the host's command
+// line and out of the test output (inside the container the shell expands it
+// into curl's arguments; it is a synthetic test value).
 func (s *stack) meiliCall(method, path, body string) (string, error) {
 	out, err := exec.Command("docker", "exec", s.containerID("meilisearch"), "sh", "-c",
 		`if [ -n "$2" ]; then set -- "$1" --data-binary "$2"; else set -- "$1"; fi
@@ -174,8 +176,8 @@ func TestKarakeepMeiliUpgrade(t *testing.T) {
 
 	s.mustUp(s.head, "meilisearch")
 	s.meiliHealthy()
-	if v := s.meiliVersion(); v != "1.56.1" {
-		t.Errorf("after the upgrade meilisearch reports %s, want the head engine 1.56.1", v)
+	if v, want := s.meiliVersion(), headMeiliVersion(t, s.head); v != want {
+		t.Errorf("after the upgrade meilisearch reports %s, want the head engine %s", v, want)
 	}
 	s.meiliTaskDone("upgradeDatabase")
 	if !s.meiliFound() {
@@ -214,4 +216,18 @@ func TestKarakeepMeiliFresh(t *testing.T) {
 		t.Error("a document indexed on a fresh install is not found")
 	}
 	s.meiliStable()
+}
+
+// headMeiliVersion is the engine version the head compose pins, read from the
+// meilisearch image tag (vX.Y.Z before the digest), so a Renovate bump of the
+// pin does not fail this test while the upgrade still works.
+func headMeiliVersion(t *testing.T, head string) string {
+	t.Helper()
+	img := parseCompose(t, head).Services["meilisearch"].Image
+	ref, _, _ := strings.Cut(img, "@")
+	_, tag, ok := strings.Cut(ref, ":")
+	if !ok || !strings.HasPrefix(tag, "v") {
+		t.Fatalf("meilisearch image %q carries no vX.Y.Z tag", img)
+	}
+	return strings.TrimPrefix(tag, "v")
 }
