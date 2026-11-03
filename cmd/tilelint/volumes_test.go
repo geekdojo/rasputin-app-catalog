@@ -136,8 +136,9 @@ func TestLint_AnonymousVolumeIsANoticeNotAProblem(t *testing.T) {
 // a drop shows up as a diff to a number a reviewer has to agree with.
 func TestShippedCorpusClassifiesEveryVolume(t *testing.T) {
 	// 35 until human-system joined with three: hs-db and hs-secrets
-	// (critical) and hs-data (state).
-	const wantVolumes = 38
+	// (critical) and hs-data (state). 37 since human-system v1.0.4 dropped
+	// hs-secrets for a platform-held ${secret:} token (geekdojo-brain#606).
+	const wantVolumes = 37
 
 	root := filepath.Join("..", "..", "tiles")
 	ids, err := corpus.IDs(root)
