@@ -18,7 +18,16 @@
     }
   ],
   "requires": [
-    "tile.web-port"
+    "tile.web-port",
+    "tile.secrets",
+    "tile.operator-secrets"
+  ],
+  "operatorSecrets": [
+    {
+      "name": "admin-token",
+      "label": "Vaultwarden admin page token (needed to invite the first account)",
+      "required": false
+    }
   ],
   "volumes": [
     {
@@ -29,5 +38,5 @@
   ],
   "website": "https://github.com/dani-garcia/vaultwarden",
   "icon": "\ud83d\udd12",
-  "postInstall": "Open it, create your admin account, then install the Bitwarden browser extension and point it here."
+  "postInstall": "Set the admin page token before you deploy: a long random value, at least 32 characters, from a password generator, kept somewhere other than this vault. Then open /admin, sign in with the token, invite your own email under Users, and create your account with that email on the sign-up page. Sign-ups are closed to anyone you have not invited. If you deployed without the token, set it in this app's secrets and save; the app redeploys with it."
 }

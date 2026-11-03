@@ -550,3 +550,51 @@ volumes:
 		t.Fatalf("the same corpus must build once the volume carries a class: %v", err)
 	}
 }
+
+// literalTileJSON is a valid tile for the literal-secret publish tests.
+const literalTileJSON = `{"id":"%s","name":"L","tagline":"t","description":"d",
+      "collection":"essentials","arch":"both","exposureDefault":"lan-only",
+      "ramFloorMB":256,"requires":["tile.web-port"],
+      "ports":[{"name":"web","container":80,"published":8080,"web":true}]}`
+
+// TC-552-09: the publish path refuses a literal secret, naming the tile and
+// not the value, and returns no bundle.
+func TestBuildBundle_RefusesALiteralSecret_TC_552_09(t *testing.T) {
+	root := t.TempDir()
+	writeTile(t, root, "literal", fmt.Sprintf(literalTileJSON, "literal"), validStack+
+		"    environment:\n      ADMIN_TOKEN: abc\n")
+
+	b, err := BuildBundle(root, 1, "2026-08-20T00:00:00Z", "")
+	if err == nil {
+		t.Fatal("a corpus with a literal secret must not build a publishable bundle")
+	}
+	for _, want := range []string{`tile "literal"`, "refusing to publish a literal secret"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal does not mention %q: %v", want, err)
+		}
+	}
+	if strings.Contains(err.Error(), "abc") {
+		t.Errorf("refusal prints the value: %v", err)
+	}
+	if b.Tiles != nil {
+		t.Errorf("a refused build returned %d tiles to publish", len(b.Tiles))
+	}
+}
+
+// TC-552-08 (publish half): a corpus holding a compose that does not parse
+// returns an error and no bundle.
+func TestBuildBundle_RefusesUnparseableCompose_TC_552_08(t *testing.T) {
+	root := t.TempDir()
+	writeTile(t, root, "broken", fmt.Sprintf(literalTileJSON, "broken"), "services: [\n  app: {\n")
+
+	b, err := BuildBundle(root, 1, "2026-08-20T00:00:00Z", "")
+	if err == nil {
+		t.Fatal("an unparseable compose must not build a bundle")
+	}
+	if !strings.Contains(err.Error(), `tile "broken"`) {
+		t.Errorf("refusal does not name the tile: %v", err)
+	}
+	if b.Tiles != nil {
+		t.Errorf("a refused build returned %d tiles to publish", len(b.Tiles))
+	}
+}
