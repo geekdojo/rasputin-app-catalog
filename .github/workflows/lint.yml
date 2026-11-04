@@ -92,13 +92,30 @@ jobs:
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: "1.27"
-      - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
-        with:
-          # Pin the TOOL as well as the action. setup-trivy installs
-          # "latest" by default, so a scan result would depend on when it
-          # ran — and the supply-chain gate compares two scans expecting
-          # the same engine on both sides.
-          version: v0.76.1
+      - name: install trivy
+        # Pin the TOOL, and install it from the release asset checked against a
+        # sha256 held here. The scan result must not depend on when it ran — the
+        # supply-chain gate compares two scans expecting the same engine on both
+        # sides. This used to be aquasecurity/setup-trivy, pinned by hash, but the
+        # action fetches contrib/install.sh from trivy's default branch at run
+        # time; when upstream pointed that script at get.trivy.dev (a host the
+        # runners cannot resolve) every PR failed here. A gate that runs a script
+        # it never pinned is not a gate. Bump version and sha together: the sha is
+        # the Linux-64bit line of the release's trivy_<v>_checksums.txt.
+        env:
+          TRIVY_VERSION: 0.76.1
+          TRIVY_SHA256: c7cbe3137fb8a48a17574bede3dd6beb16742d1e9772929940fc90082c39d9c0
+        run: |
+          set -euo pipefail
+          tarball="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          curl --fail --silent --show-error --location --proto '=https' \
+            --output "$RUNNER_TEMP/$tarball" \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/$tarball"
+          echo "$TRIVY_SHA256  $RUNNER_TEMP/$tarball" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/trivy-bin"
+          tar -xzf "$RUNNER_TEMP/$tarball" -C "$RUNNER_TEMP/trivy-bin" trivy
+          echo "$RUNNER_TEMP/trivy-bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/trivy-bin/trivy" --version
       - name: app-level vulnerabilities must not increase
         # BASE_REF via env, not interpolated into the run block. A branch name
         # is attacker-influenced text and git permits characters a shell will

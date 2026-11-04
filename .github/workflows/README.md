@@ -43,9 +43,15 @@ A tag is mutable: whoever controls the action can repoint `v4` at anything, and 
 with whatever permissions the job holds. The trailing comment is what keeps it readable, and
 Renovate updates these automatically — so pinning costs nothing ongoing.
 
-Pin the **tool** too, not just the action that installs it. `setup-trivy` installs "latest"
-by default, which would make a scan result depend on the day it ran — and the supply-chain
-gate compares two scans expecting the same engine on both sides.
+Pin the **tool** too, not just the action that installs it — and pin everything the install
+runs. Trivy is downloaded from its GitHub release asset and checked against a sha256 held in
+the workflow, so a scan result cannot depend on the day it ran: the supply-chain gate compares
+two scans expecting the same engine on both sides. We used to install it with
+`aquasecurity/setup-trivy`, pinned by hash, but that action fetches `contrib/install.sh` from
+Trivy's default branch at run time. When upstream pointed the script at a download host the
+runners cannot resolve, every PR failed — a hash-pinned action is not pinned if it runs code
+it fetched unpinned. Renovate does not track this pin; bump the version and the sha together,
+taking the sha from the release's `trivy_<version>_checksums.txt`.
 
 This is the same rule the catalog applies to container images. We digest-pin every tile;
 pinning actions by mutable tag while doing so was an inconsistency, not a considered
