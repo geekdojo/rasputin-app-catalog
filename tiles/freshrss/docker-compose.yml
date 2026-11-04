@@ -12,7 +12,7 @@ services:
       - freshrss-data:/var/www/FreshRSS/data
       - freshrss-extensions:/var/www/FreshRSS/extensions
     ports:
-      - "8082:80"
+      - "127.0.0.1:8082:80"
 
 volumes:
   freshrss-data:

@@ -12,7 +12,7 @@ services:
       - abs-audiobooks:/audiobooks
       - abs-podcasts:/podcasts
     ports:
-      - "13378:80"
+      - "127.0.0.1:13378:80"
 
 volumes:
   abs-config:

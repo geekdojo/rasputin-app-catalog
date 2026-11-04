@@ -25,7 +25,7 @@ services:
       - romm-library:/romm/library
       - romm-assets:/romm/assets
     ports:
-      - "8084:8080"
+      - "127.0.0.1:8084:8080"
 
   romm-db:
     image: mariadb:12.3.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9

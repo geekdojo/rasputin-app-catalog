@@ -19,7 +19,7 @@ services:
     volumes:
       - open-webui-data:/app/backend/data
     ports:
-      - "3080:8080"
+      - "127.0.0.1:3080:8080"
 
 volumes:
   ollama-models:

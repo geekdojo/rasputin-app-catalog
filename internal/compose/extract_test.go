@@ -1,6 +1,8 @@
 package compose
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -384,5 +386,77 @@ func TestExtract_UnprivilegedTileStaysQuiet(t *testing.T) {
 	empty := tileschema.SafetyFacts{Images: f.Images}
 	if !reflect.DeepEqual(f, empty) {
 		t.Errorf("an unprivileged stack produced non-empty privilege facts: %#v", f)
+	}
+}
+
+// TC-551-12: every publish is recorded as a binding, sorted by (Published,
+// HostIP) whatever order the services were written in, so the signed facts
+// reproduce; a host-network stack with no ports records none.
+func TestExtract_PortBindingsSortedAndReproducible(t *testing.T) {
+	yml := []byte(`
+services:
+  prowlarr:
+    image: ` + pinned + `
+    ports:
+      - "9696:9696"
+  sonarr:
+    image: ` + pinned + `
+    ports:
+      - "127.0.0.1:8989:8989"
+  radarr:
+    image: ` + pinned + `
+    ports:
+      - "7878:7878"
+  lan:
+    image: ` + pinned + `
+    ports:
+      - "192.168.1.10:8989:8989"
+`)
+	first, err := Extract(yml)
+	if err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+	want := []tileschema.PortBinding{
+		{HostIP: "", Published: 7878},
+		{HostIP: "127.0.0.1", Published: 8989},
+		{HostIP: "192.168.1.10", Published: 8989},
+		{HostIP: "", Published: 9696},
+	}
+	if !reflect.DeepEqual(first.PortBindings, want) {
+		t.Fatalf("PortBindings = %+v, want %+v", first.PortBindings, want)
+	}
+	second, err := Extract(yml)
+	if err != nil {
+		t.Fatalf("extract again: %v", err)
+	}
+	if !reflect.DeepEqual(first, second) {
+		t.Fatalf("two extractions of the same compose differ:\n%+v\n%+v", first, second)
+	}
+
+	ha, err := os.ReadFile(filepath.Join("..", "..", "tiles", "home-assistant", "docker-compose.yml"))
+	if err != nil {
+		t.Fatalf("read home-assistant compose: %v", err)
+	}
+	f, err := Extract(ha)
+	if err != nil {
+		t.Fatalf("extract home-assistant: %v", err)
+	}
+	if len(f.PortBindings) != 0 || !f.HostNetwork {
+		t.Fatalf("home-assistant: PortBindings = %+v, HostNetwork = %v; want none and true", f.PortBindings, f.HostNetwork)
+	}
+}
+
+// A ports entry Extract cannot read fails the whole extraction, so no bundle
+// is built from facts that left a publish out.
+func TestExtract_UnreadablePortsEntryFails(t *testing.T) {
+	_, err := Extract([]byte(`
+services:
+  app:
+    image: ` + pinned + `
+    ports:
+      - "8096:8096/udp"
+`))
+	if err == nil || !strings.Contains(err.Error(), `service "app"`) {
+		t.Fatalf("want a refusal naming service app, got %v", err)
 	}
 }

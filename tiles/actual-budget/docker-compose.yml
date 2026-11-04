@@ -8,7 +8,7 @@ services:
     volumes:
       - actual-data:/data
     ports:
-      - "5006:5006"
+      - "127.0.0.1:5006:5006"
 
 volumes:
   actual-data:

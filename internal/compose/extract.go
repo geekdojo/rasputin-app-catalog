@@ -36,6 +36,7 @@ type service struct {
 	CapAdd      []string `yaml:"cap_add"`
 	Devices     []string `yaml:"devices"`
 	Volumes     []any    `yaml:"volumes"`
+	Ports       []any    `yaml:"ports"`
 
 	// #195: keys that grant privilege and were previously unread. The types
 	// here are wider than they look because compose accepts more than one
@@ -134,6 +135,11 @@ func Extract(yml []byte) (tileschema.SafetyFacts, error) {
 				out.BindMounts = append(out.BindMounts, src)
 			}
 		}
+		bindings, err := portBindings(name, s.Ports)
+		if err != nil {
+			return out, err
+		}
+		out.PortBindings = append(out.PortBindings, bindings...)
 
 		// --- #195 ---
 		for _, o := range s.SecurityOpt {
@@ -191,6 +197,7 @@ func Extract(yml []byte) (tileschema.SafetyFacts, error) {
 	sort.Strings(out.CapAdd)
 	sort.Strings(out.BindMounts)
 	sort.Strings(out.Devices)
+	sortPortBindings(out.PortBindings)
 
 	out.SecurityOpt = sortedSet(securityOpt)
 	out.UsernsMode = sortedSet(usernsMode)
@@ -203,6 +210,17 @@ func Extract(yml []byte) (tileschema.SafetyFacts, error) {
 	out.ReservedDevices = sortedSet(reservedDevices)
 	out.NamespaceJoins = sortedSet(namespaceJoins)
 	return out, nil
+}
+
+// sortPortBindings orders the bindings by (Published, HostIP), so the signed
+// facts reproduce whatever order the services and entries were written in.
+func sortPortBindings(b []tileschema.PortBinding) {
+	sort.Slice(b, func(i, j int) bool {
+		if b[i].Published != b[j].Published {
+			return b[i].Published < b[j].Published
+		}
+		return b[i].HostIP < b[j].HostIP
+	})
 }
 
 // sortedSet turns a presence set into the deterministic slice the manifest

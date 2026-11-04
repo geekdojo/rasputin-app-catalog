@@ -173,10 +173,12 @@ func TestBuildBundle_PreviewTileWithoutCompose(t *testing.T) {
 }
 
 // validStack is a minimal compose a tile with one web port and no volumes can
-// publish.
+// publish: the web port on loopback (geekdojo/geekdojo-brain#551).
 const validStack = `services:
   app:
     image: ghcr.io/example/app@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    ports:
+      - "127.0.0.1:8080:80"
 `
 
 // TC-899-01: the issue's "done". A field the pinned tileschema does not define
@@ -520,6 +522,8 @@ func TestBuildBundle_RefusesAnUnclassifiedVolume(t *testing.T) {
 	const stack = `services:
   app:
     image: ghcr.io/example/app@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    ports:
+      - "127.0.0.1:8080:80"
     volumes:
       - app-data:/data
 volumes:
@@ -596,5 +600,99 @@ func TestBuildBundle_RefusesUnparseableCompose_TC_552_08(t *testing.T) {
 	}
 	if b.Tiles != nil {
 		t.Errorf("a refused build returned %d tiles to publish", len(b.Tiles))
+	}
+}
+
+// webTileJSON is a valid tile whose web port is 8096, for the web-port
+// publish tests.
+const webTileJSON = `{"id":"%s","name":"W","tagline":"t","description":"d",
+      "collection":"essentials","arch":"both","exposureDefault":"lan-only",
+      "ramFloorMB":256,"requires":["tile.web-port"],
+      "ports":[{"name":"web","container":8096,"published":8096,"web":true}]}`
+
+// TC-551-13: the publish path refuses a web port published on every
+// interface, and one not published at all, each with its own message (the
+// neutral wrapper, F-551-03), and returns no bundle.
+func TestBuildBundle_RefusesAWebPortOffLoopback_TC_551_13(t *testing.T) {
+	const image = "    image: ghcr.io/example/app@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n"
+	cases := []struct {
+		id, ports string
+		want      []string
+		notWant   string
+	}{
+		{"all-interfaces", "    ports:\n      - \"8096:8096\"\n",
+			[]string{`tile "all-interfaces"`, "8096", "every interface", "127.0.0.1:"}, ""},
+		{"unpublished", "",
+			[]string{`tile "unpublished"`, "web port 8096 is not published"}, "loopback"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.id, func(t *testing.T) {
+			root := t.TempDir()
+			writeTile(t, root, tc.id, fmt.Sprintf(webTileJSON, tc.id), "services:\n  app:\n"+image+tc.ports)
+			b, err := BuildBundle(root, 1, "2026-08-20T00:00:00Z", "")
+			if err == nil {
+				t.Fatal("the web-port rule must refuse this corpus")
+			}
+			for _, want := range tc.want {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("refusal does not mention %q: %v", want, err)
+				}
+			}
+			if tc.notWant != "" && strings.Contains(err.Error(), tc.notWant) {
+				t.Errorf("refusal must not mention %q: %v", tc.notWant, err)
+			}
+			if b.Tiles != nil {
+				t.Errorf("a refused build returned %d tiles to publish", len(b.Tiles))
+			}
+		})
+	}
+}
+
+// TC-551-15: in the bundle built from the shipped corpus, every web port is
+// recorded on 127.0.0.1, home-assistant records no binding and host
+// networking, and the client-connect ports stay on every interface.
+func TestBuildBundle_ShippedWebPortsAreLoopback_TC_551_15(t *testing.T) {
+	b, err := BuildBundle(shippedCorpus, 1, "2026-08-20T00:00:00Z", "")
+	if err != nil {
+		t.Fatalf("BuildBundle: %v", err)
+	}
+	facts := map[string]tileschema.SafetyFacts{}
+	for _, pt := range b.Tiles {
+		facts[pt.BundleTile.Tile.ID] = pt.Safety
+	}
+	want := map[string][]tileschema.PortBinding{
+		"actual-budget":  {{HostIP: "127.0.0.1", Published: 5006}},
+		"arr-stack":      {{Published: 7878}, {Published: 8090}, {HostIP: "127.0.0.1", Published: 8989}, {Published: 9696}},
+		"audiobookshelf": {{HostIP: "127.0.0.1", Published: 13378}},
+		"freshrss":       {{HostIP: "127.0.0.1", Published: 8082}},
+		"human-system":   {{HostIP: "127.0.0.1", Published: 8085}},
+		"immich":         {{HostIP: "127.0.0.1", Published: 2283}},
+		"jellyfin":       {{HostIP: "127.0.0.1", Published: 8096}},
+		"karakeep":       {{HostIP: "127.0.0.1", Published: 3000}},
+		"mealie":         {{HostIP: "127.0.0.1", Published: 9000}},
+		"minecraft":      {{Published: 25565}},
+		"navidrome":      {{HostIP: "127.0.0.1", Published: 4533}},
+		"ollama-webui":   {{HostIP: "127.0.0.1", Published: 3080}},
+		"romm":           {{HostIP: "127.0.0.1", Published: 8084}},
+		"shadowbroker":   {{HostIP: "127.0.0.1", Published: 3200}, {Published: 8200}},
+		"uptime-kuma":    {{HostIP: "127.0.0.1", Published: 3001}},
+		"vaultwarden":    {{HostIP: "127.0.0.1", Published: 8083}},
+	}
+	for id, bindings := range want {
+		f, ok := facts[id]
+		if !ok {
+			t.Errorf("%s: not in the bundle", id)
+			continue
+		}
+		if !reflect.DeepEqual(f.PortBindings, bindings) {
+			t.Errorf("%s: portBindings = %+v, want %+v", id, f.PortBindings, bindings)
+		}
+	}
+	ha, ok := facts["home-assistant"]
+	if !ok {
+		t.Fatal("home-assistant: not in the bundle")
+	}
+	if len(ha.PortBindings) != 0 || !ha.HostNetwork {
+		t.Errorf("home-assistant: portBindings = %+v, hostNetwork = %v; want none and true", ha.PortBindings, ha.HostNetwork)
 	}
 }

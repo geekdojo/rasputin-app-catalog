@@ -22,6 +22,8 @@ func secretCompose(value string) string {
 	return `services:
   app:
     image: ghcr.io/example/app@` + testDigest + `
+    ports:
+      - "127.0.0.1:8080:80"
     environment:
       DB_PASSWORD: "` + value + `"
 `
@@ -266,6 +268,11 @@ func TestGuideExampleIsAValidTile(t *testing.T) {
 		t.Fatalf("the example must share ${secret:db-password} across two services; found it in %d", services)
 	}
 
+	// TC-551-16: the example publishes its web port on loopback.
+	if !strings.Contains(composeYAML, `"127.0.0.1:9000:9000"`) {
+		t.Fatal("the guide's worked example must publish its web port as 127.0.0.1:9000:9000")
+	}
+
 	root := t.TempDir()
 	writeTile(t, root, tile.ID, tile, composeYAML)
 	problems, _, _ := checkTile(root, tile.ID, false)
@@ -358,6 +365,11 @@ func TestOperatorGuideExampleIsAValidTile(t *testing.T) {
 		if !strings.Contains(composeYAML, tileschema.SecretTokenPrefix+s.Name+"}") {
 			t.Fatalf("R6's compose does not use its declared secret %q", s.Name)
 		}
+	}
+
+	// TC-551-16: R6's example publishes its web port on loopback.
+	if !strings.Contains(composeYAML, `"127.0.0.1:8200:8000"`) {
+		t.Fatal("R6's worked example must publish its web port as 127.0.0.1:8200:8000")
 	}
 
 	root := t.TempDir()

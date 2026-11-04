@@ -13,6 +13,8 @@ import (
 const twoVolumeCompose = `services:
   app:
     image: ghcr.io/example/app@` + testDigest + `
+    ports:
+      - "127.0.0.1:8080:80"
     volumes:
       - app-data:/data
       - app-cache:/cache
