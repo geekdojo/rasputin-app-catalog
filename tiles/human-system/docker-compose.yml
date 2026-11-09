@@ -58,7 +58,7 @@
 
 services:
   app:
-    image: ghcr.io/geekdojo/human-system@sha256:66620962dce4e19d8d73b7326ac82aa6a30f80fdc27536ccdd7fb7061307d18e
+    image: ghcr.io/geekdojo/human-system@sha256:2960ce55e3b977d672b9fe95cb5f4ed3493ad8b8edb7fe548715f3a34c1039de
     restart: unless-stopped
 
     environment:
