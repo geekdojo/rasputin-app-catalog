@@ -22,4 +22,5 @@ AI-assisted contributions — is in [AI_DISCLOSURE.md](AI_DISCLOSURE.md).
   workflow is the exception and is genuinely `auto`: an app request that clears triage is
   handed to an agent that researches the upstream, drafts a digest-pinned tile, runs the same
   gates a human would, and opens a pull request with no human in the loop. It proposes; the
-  gates and the maintainer dispose, and the maintainer performs every merge.
+  gates and the maintainer dispose, and the maintainer reviews and merges every pull request
+  it opens.
