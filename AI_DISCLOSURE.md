@@ -31,7 +31,7 @@ implicit in the section above.
 - **Automation merges only its own reviewed pull requests, never with admin override.** It
   never merges an outside contribution. The one exception is Renovate, which merges the
   dependency updates its configuration marks for automerge once the required checks pass;
-  major version bumps and security updates are never automerged.
+  major tile-image bumps and security updates are never automerged.
 
 ## Human accountability
 
