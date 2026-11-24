@@ -22,14 +22,16 @@ format. This document is the long-form version of it.
 Code review is itself AI-assisted in this project, so it is disclosed here rather than left
 implicit in the section above.
 
-- AI assists with review during interactive sessions — reading diffs and flagging issues — and
-  the review that decides whether a change lands is an adversarial review by a separate AI
-  agent, described under Human accountability below.
+- AI assists with review during interactive sessions — reading diffs and flagging issues. For
+  changes made in those sessions, the review that decides whether a change lands is an
+  adversarial review by a separate AI agent, described under Human accountability below.
 - No automated review workflow runs in this repository. Other Rasputin repositories run Claude
   Code review workflows that comment on pull requests; which workflows run in a given repository
   is visible in `.github/workflows/`.
 - **Automation merges only its own reviewed pull requests, never with admin override.** It
-  never merges an outside contribution.
+  never merges an outside contribution. The one exception is Renovate, which merges the
+  dependency updates its configuration marks for automerge once the required checks pass;
+  major version bumps and security updates are never automerged.
 
 ## Human accountability
 
