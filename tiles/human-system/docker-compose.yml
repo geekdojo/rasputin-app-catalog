@@ -5,7 +5,7 @@
 # deploy/docker-compose.yml. deploy/test-tile-secrets.sh does run THIS file, on a
 # throwaway project, to prove the secret handling below end to end.
 #
-#   * `ghcr.io/geekdojo/human-system@sha256:018c969f9e650a331519c9b53e1eaa3112937523bb0cc1e86d82e17ab9389c22` is substituted by .github/workflows/release.yml with the
+#   * `ghcr.io/geekdojo/human-system@sha256:19f290014b8c02912f13a6f69242153c7cc57a223999352375c85f4a708dcb4d` is substituted by .github/workflows/release.yml with the
 #     digest of the image that release actually pushed. A catalog tile MUST be
 #     digest-pinned: tileschema.validateImagePin refuses a tag reference however
 #     specific the tag looks, because a tag stays mutable at the registry.
@@ -58,7 +58,7 @@
 
 services:
   app:
-    image: ghcr.io/geekdojo/human-system@sha256:018c969f9e650a331519c9b53e1eaa3112937523bb0cc1e86d82e17ab9389c22
+    image: ghcr.io/geekdojo/human-system@sha256:19f290014b8c02912f13a6f69242153c7cc57a223999352375c85f4a708dcb4d
     restart: unless-stopped
 
     environment:
